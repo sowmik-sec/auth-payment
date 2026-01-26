@@ -7,6 +7,10 @@ import { LoginPage } from './pages/LoginPage'
 import { SignupPage } from './pages/SignupPage'
 import { useUser, useLogout } from './features/auth/hooks'
 import { Button } from './components/ui/button'
+import { PricingForm } from './features/pricing/components/PricingForm'
+import { CheckoutPage } from './features/payment/components/CheckoutPage'
+import { WalletDashboard } from './features/wallet/components/WalletDashboard'
+import { AffiliateDashboard } from './features/affiliate/components/AffiliateDashboard'
 
 const queryClient = new QueryClient()
 
@@ -22,6 +26,15 @@ const RootComponent = () => {
         <div className="flex gap-2">
           <Link to="/" className="[&.active]:font-bold">
             Home
+          </Link>
+          <Link to="/admin/pricing" className="[&.active]:font-bold">
+            Pricing
+          </Link>
+          <Link to="/wallet" className="[&.active]:font-bold">
+            Wallet
+          </Link>
+          <Link to="/affiliate" className="[&.active]:font-bold">
+            Affiliates
           </Link>
         </div>
         <div>
@@ -59,13 +72,37 @@ const loginRoute = createRoute({
   component: LoginPage,
 })
 
+const checkoutRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/checkout/$planId',
+  component: CheckoutPage,
+})
+
+const walletRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/wallet',
+  component: WalletDashboard,
+})
+
+const affiliateRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/affiliate',
+  component: AffiliateDashboard,
+})
+
 const signupRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/signup',
   component: SignupPage,
 })
 
-const routeTree = rootRoute.addChildren([indexRoute, loginRoute, signupRoute])
+const pricingRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/admin/pricing',
+  component: PricingForm,
+})
+
+const routeTree = rootRoute.addChildren([indexRoute, loginRoute, signupRoute, pricingRoute, checkoutRoute, walletRoute, affiliateRoute])
 
 const router = createRouter({ routeTree, context: { queryClient } })
 

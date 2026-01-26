@@ -8,6 +8,7 @@ import (
 	"auth-payment-backend/internal/adapters/config"
 	"auth-payment-backend/internal/adapters/handler"
 	"auth-payment-backend/internal/adapters/middleware"
+	sys_payment "auth-payment-backend/internal/adapters/payment/stripe"
 	"auth-payment-backend/internal/adapters/repository"
 	"auth-payment-backend/internal/core/services"
 
@@ -23,9 +24,36 @@ func main() {
 			repository.NewMongoClient,
 			repository.NewDatabase,
 			repository.NewMongoUserRepository,
+			repository.NewMongoPricingRepository,
+			repository.NewMongoWalletRepository, // Added
+			// Payment Deps
+			sys_payment.NewStripeAdapter,
+			services.NewPaymentService,
+			services.NewWalletService, // Added
+
+			handler.NewPaymentHandler,
+			handler.NewWalletHandler, // Added
+
+			// Affiliate Deps
+			repository.NewMongoAffiliateRepository,
+			repository.NewMongoInvoiceRepository, // Added
+			// Payment Deps
+			sys_payment.NewStripeAdapter,
+			services.NewPaymentService,
+			services.NewWalletService,
+			services.NewAffiliateService,
+			services.NewInvoiceService, // Added
+
+			handler.NewPaymentHandler,
+			handler.NewWalletHandler,
+			handler.NewAffiliateHandler,
+			handler.NewInvoiceHandler, // Added
+
 			services.NewTokenService,
 			services.NewAuthService,
+			services.NewPricingService, // Added
 			handler.NewAuthHandler,
+			handler.NewPricingHandler, // Added
 			middleware.NewAuthMiddleware,
 			NewGinRouter,
 		),
@@ -52,8 +80,13 @@ func NewGinRouter() *gin.Engine {
 	return r
 }
 
-func RegisterRoutes(router *gin.Engine, authHandler *handler.AuthHandler, authMiddleware *middleware.AuthMiddleware) {
+func RegisterRoutes(router *gin.Engine, authHandler *handler.AuthHandler, pricingHandler *handler.PricingHandler, paymentHandler *handler.PaymentHandler, walletHandler *handler.WalletHandler, affiliateHandler *handler.AffiliateHandler, invoiceHandler *handler.InvoiceHandler, authMiddleware *middleware.AuthMiddleware) {
 	authHandler.RegisterRoutes(router, authMiddleware.Protect())
+	pricingHandler.RegisterRoutes(router, authMiddleware.Protect())
+	paymentHandler.RegisterRoutes(router, authMiddleware.Protect())
+	walletHandler.RegisterRoutes(router, authMiddleware.Protect())
+	affiliateHandler.RegisterRoutes(router, authMiddleware.Protect())
+	invoiceHandler.RegisterRoutes(router, authMiddleware.Protect())
 }
 
 func StartServer(lc fx.Lifecycle, cfg *config.Config, router *gin.Engine) {
