@@ -19,9 +19,10 @@ func NewPaymentHandler(service *services.PaymentServiceImpl) *PaymentHandler {
 type checkoutRequest struct {
 	PlanID        string  `json:"plan_id" binding:"required"`
 	AffiliateCode string  `json:"affiliate_code"`
-	Amount        float64 `json:"amount"`     // For Donation
-	Quantity      int     `json:"quantity"`   // For Tiered
-	TierIndex     int     `json:"tier_index"` // For Tiered (optional, explicit selection)
+	CouponCode    string  `json:"coupon_code"` // Added
+	Amount        float64 `json:"amount"`      // For Donation
+	Quantity      int     `json:"quantity"`    // For Tiered
+	TierIndex     int     `json:"tier_index"`  // For Tiered
 }
 
 func (h *PaymentHandler) InitiateCheckout(c *gin.Context) {
@@ -37,7 +38,7 @@ func (h *PaymentHandler) InitiateCheckout(c *gin.Context) {
 	userID := "650000000000000000000000" // Mock for now until Auth is fully verified in this context
 
 	// Pass dynamic args to service
-	clientSecret, err := h.service.InitiateCheckout(c.Request.Context(), userID, req.PlanID, req.AffiliateCode, req.Amount, req.Quantity)
+	clientSecret, err := h.service.InitiateCheckout(c.Request.Context(), userID, req.PlanID, req.AffiliateCode, req.CouponCode, req.Amount, req.Quantity)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

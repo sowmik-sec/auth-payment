@@ -14,6 +14,8 @@ import { AffiliateDashboard } from './features/affiliate/components/AffiliateDas
 import { LandingPage } from './features/home/components/LandingPage'
 import { PricingPage } from './features/pricing/components/PricingPage'
 
+import { CouponList } from './features/coupons/pages/CouponList'
+
 const queryClient = new QueryClient()
 
 const RootComponent = () => {
@@ -39,7 +41,10 @@ const RootComponent = () => {
             Affiliates
           </Link>
           <Link to="/admin/pricing" className="[&.active]:font-bold p-2 text-indigo-600">
-            Admin
+            Pricing (Admin)
+          </Link>
+          <Link to="/admin/coupons" className="[&.active]:font-bold p-2 text-indigo-600">
+            Coupons (Admin)
           </Link>
         </div>
         <div>
@@ -107,6 +112,12 @@ const adminPricingRoute = createRoute({
   component: PricingForm,
 })
 
+const adminCouponsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/admin/coupons',
+  component: CouponList,
+})
+
 const pricingRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/pricing',
@@ -123,7 +134,7 @@ const paymentSuccessRoute = createRoute({
   component: PaymentSuccessPage,
 })
 
-const routeTree = rootRoute.addChildren([indexRoute, loginRoute, signupRoute, adminPricingRoute, pricingRoute, checkoutRoute, walletRoute, affiliateRoute, paymentSuccessRoute])
+const routeTree = rootRoute.addChildren([indexRoute, loginRoute, signupRoute, adminPricingRoute, adminCouponsRoute, pricingRoute, checkoutRoute, walletRoute, affiliateRoute, paymentSuccessRoute])
 
 const router = createRouter({
   routeTree,

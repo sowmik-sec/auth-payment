@@ -14,25 +14,27 @@ type PaymentServiceImpl struct {
 	gateway      ports.PaymentGateway
 	pricingSvc   ports.PricingService
 	affiliateSvc ports.AffiliateService
+	couponSvc    ports.CouponService
 }
 
-func NewPaymentService(gateway ports.PaymentGateway, pricingSvc ports.PricingService, affiliateSvc ports.AffiliateService) *PaymentServiceImpl {
+func NewPaymentService(gateway ports.PaymentGateway, pricingSvc ports.PricingService, affiliateSvc ports.AffiliateService, couponSvc ports.CouponService) *PaymentServiceImpl {
 	return &PaymentServiceImpl{
 		gateway:      gateway,
 		pricingSvc:   pricingSvc,
 		affiliateSvc: affiliateSvc,
+		couponSvc:    couponSvc,
 	}
 }
 
 // InitiateCheckout creates a PaymentIntent for a specific Plan
-func (s *PaymentServiceImpl) InitiateCheckout(ctx context.Context, userID string, planID string, affiliateCode string, inputAmount float64, quantity int) (string, error) {
+func (s *PaymentServiceImpl) InitiateCheckout(ctx context.Context, userID string, planID string, affiliateCode string, couponCode string, inputAmount float64, quantity int) (string, error) {
 	// 1. Get Plan Details
 	plan, err := s.pricingSvc.GetPlan(ctx, planID)
 	if err != nil {
 		return "", err
 	}
 
-	// 2. Calculate Final Amount (TODO: Coupons)
+	// 2. Calculate Final Amount
 	amount := 0.0
 	currency := "USD"
 
@@ -43,6 +45,9 @@ func (s *PaymentServiceImpl) InitiateCheckout(ctx context.Context, userID string
 	case domain.PricingTypeSubscription:
 		amount = plan.SubscriptionConfig.Price
 		currency = plan.SubscriptionConfig.Currency
+	case domain.PricingTypeBundle:
+		amount = plan.BundleConfig.Price
+		currency = "USD" // Default logic for bundles
 	case domain.PricingTypeSplit:
 		// Default logic: Pay Upfront amount (if > 0) OR first installment
 		if plan.SplitConfig.UpfrontPayment > 0 {
@@ -80,13 +85,27 @@ func (s *PaymentServiceImpl) InitiateCheckout(ctx context.Context, userID string
 			return "", errors.New("invalid quantity for tiered pricing")
 		}
 		amount = unitPrice * float64(quantity)
-		// Assuming currency logic exists or default USD (tier struct doesn't have currency, assuming plan level or hardcoded USD for now based on types)
-		currency = "USD" // TieredConfig in types.ts doesn't have currency, defaulting to USD
+		currency = "USD"
 	default:
 		return "", errors.New("unsupported plan type for basic checkout")
 	}
 
-	// 3. Create PaymentIntent via Gateway
+	// 3. Apply Coupon if provided
+	if couponCode != "" {
+		// Validate Coupon
+		_, discount, err := s.couponSvc.ValidateCoupon(ctx, couponCode, planID)
+		if err != nil {
+			return "", errors.New("invalid coupon: " + err.Error())
+		}
+
+		// Apply Discount
+		amount -= discount
+		if amount < 0 {
+			amount = 0
+		}
+	}
+
+	// 4. Create PaymentIntent via Gateway
 	metadata := map[string]string{
 		"plan_id": planID,
 		"user_id": userID,
@@ -94,15 +113,14 @@ func (s *PaymentServiceImpl) InitiateCheckout(ctx context.Context, userID string
 	if affiliateCode != "" {
 		metadata["affiliate_code"] = affiliateCode
 	}
+	if couponCode != "" {
+		metadata["coupon_code"] = couponCode
+	}
 
 	clientSecret, err := s.gateway.CreatePaymentIntent(ctx, amount, currency, metadata)
 	if err != nil {
 		return "", err
 	}
-
-	// 4. Save Pending Payment Record in DB (TODO: PaymentRepository)
-	// payment := &domain.Payment{...}
-	// repo.Save(payment)
 
 	return clientSecret, nil
 }
@@ -111,6 +129,7 @@ func (s *PaymentServiceImpl) InitiateCheckout(ctx context.Context, userID string
 func (s *PaymentServiceImpl) ProcessPaymentSuccess(ctx context.Context, amount float64, currency string, metadata map[string]string) error {
 	// 1. Mark Payment as Paid in DB (TODO)
 
+	// 2. Handle Affiliate Commission
 	// 2. Handle Affiliate Commission
 	if code, ok := metadata["affiliate_code"]; ok && code != "" {
 		// We need an Order ID to link the commission to.
@@ -122,6 +141,14 @@ func (s *PaymentServiceImpl) ProcessPaymentSuccess(ctx context.Context, amount f
 			// Log error but don't fail the whole payment success processing
 			// log.Printf("Failed to process commission: %v", err)
 			return err
+		}
+	}
+
+	// 3. Handle Coupon Usage
+	if code, ok := metadata["coupon_code"]; ok && code != "" {
+		if err := s.couponSvc.ApplyCoupon(ctx, code); err != nil {
+			// Log error
+			// return err
 		}
 	}
 

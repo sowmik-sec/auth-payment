@@ -27,8 +27,10 @@ func main() {
 			repository.NewMongoPricingRepository,
 			repository.NewMongoWalletRepository, // Added
 			// Affiliate Deps
+			// Affiliate Deps
 			repository.NewMongoAffiliateRepository,
 			repository.NewMongoInvoiceRepository,
+			repository.NewMongoCouponRepository, // Added
 
 			// Payment Deps
 			sys_payment.NewStripeAdapter,
@@ -40,13 +42,16 @@ func main() {
 			handler.NewPaymentHandler,
 			handler.NewWalletHandler,
 			handler.NewAffiliateHandler,
+			handler.NewAffiliateHandler,
 			handler.NewInvoiceHandler,
+			handler.NewCouponHandler, // Added
 
 			services.NewTokenService,
 			services.NewAuthService,
-			services.NewPricingService, // Added
+			services.NewPricingService,
+			services.NewCouponService, // Added
 			handler.NewAuthHandler,
-			handler.NewPricingHandler, // Added
+			handler.NewPricingHandler,
 			middleware.NewAuthMiddleware,
 			NewGinRouter,
 		),
@@ -73,13 +78,22 @@ func NewGinRouter() *gin.Engine {
 	return r
 }
 
-func RegisterRoutes(router *gin.Engine, authHandler *handler.AuthHandler, pricingHandler *handler.PricingHandler, paymentHandler *handler.PaymentHandler, walletHandler *handler.WalletHandler, affiliateHandler *handler.AffiliateHandler, invoiceHandler *handler.InvoiceHandler, authMiddleware *middleware.AuthMiddleware) {
+func RegisterRoutes(router *gin.Engine, authHandler *handler.AuthHandler, pricingHandler *handler.PricingHandler, paymentHandler *handler.PaymentHandler, walletHandler *handler.WalletHandler, affiliateHandler *handler.AffiliateHandler, invoiceHandler *handler.InvoiceHandler, couponHandler *handler.CouponHandler, authMiddleware *middleware.AuthMiddleware) {
 	authHandler.RegisterRoutes(router, authMiddleware.Protect())
 	pricingHandler.RegisterRoutes(router, authMiddleware.Protect())
 	paymentHandler.RegisterRoutes(router, authMiddleware.Protect())
 	walletHandler.RegisterRoutes(router, authMiddleware.Protect())
 	affiliateHandler.RegisterRoutes(router, authMiddleware.Protect())
 	invoiceHandler.RegisterRoutes(router, authMiddleware.Protect())
+
+	// Coupon Routes
+	couponGroup := router.Group("/coupons")
+	couponGroup.Use(authMiddleware.Protect())
+	{
+		couponGroup.POST("", couponHandler.CreateCoupon)
+		couponGroup.GET("", couponHandler.ListCoupons)
+		couponGroup.POST("/validate", couponHandler.ValidateCoupon) // Public? Maybe allow without auth if guest checkout? For now protected.
+	}
 }
 
 func StartServer(lc fx.Lifecycle, cfg *config.Config, router *gin.Engine) {

@@ -67,6 +67,12 @@ export const CheckoutPage = () => {
     const [checkoutError, setCheckoutError] = useState<string | null>(null);
     const [step, setStep] = useState<'config' | 'payment'>('config');
 
+    // Coupon State
+    const [couponCode, setCouponCode] = useState("");
+    const [appliedCoupon, setAppliedCoupon] = useState<{ code: string, discount_amount: number, discount_type: 'fixed' | 'percent' } | null>(null);
+    const [couponError, setCouponError] = useState("");
+    const [validatingCoupon, setValidatingCoupon] = useState(false);
+
     // Initialize defaults when plan loads
     useEffect(() => {
         if (plan) {
@@ -76,9 +82,8 @@ export const CheckoutPage = () => {
             if (plan.type === 'tiered') {
                 setQuantity(1);
             }
-            // For others, we can skip config step if we want, or show a review.
-            // Let's autoskip for simple types to keep it fast
-            if (plan.type === 'one_time' || plan.type === 'subscription' || plan.type === 'split') {
+            // For others, autoskip config step for simplicity
+            if (plan.type === 'one_time' || plan.type === 'subscription' || plan.type === 'split' || plan.type === 'bundle') {
                 setStep('payment');
             }
         }
@@ -87,25 +92,81 @@ export const CheckoutPage = () => {
     // Effect to initialize checkout when entering payment step
     useEffect(() => {
         if (step === 'payment' && plan && !clientSecret) {
-            const payload: any = { planId };
-
-            if (plan.type === 'donation') payload.amount = donationAmount;
-            if (plan.type === 'tiered') payload.quantity = quantity;
-
-            // Manual call instead of using paymentApi.initiateCheckout wrapper which might not support args yet
-            // Actually, let's update call
-            paymentApi.initiateCheckout(planId, undefined, plan.type === 'donation' ? donationAmount : undefined, plan.type === 'tiered' ? quantity : undefined)
-                .then(data => setClientSecret(data.client_secret))
-                .catch(err => {
-                    console.error(err);
-                    if (err.response?.status === 401 || err.response?.status === 403) {
-                        window.location.href = '/login';
-                    } else {
-                        setCheckoutError("Failed to initialize checkout. Please try again.");
-                    }
-                });
+            initiateCheckout();
         }
-    }, [step, plan, planId, donationAmount, quantity, clientSecret]);
+    }, [step, plan, planId]); // Removed dependencies that trigger re-init on every keystroke
+
+    const initiateCheckout = () => {
+        const payload: any = { planId };
+
+        if (plan?.type === 'donation') payload.amount = donationAmount;
+        if (plan?.type === 'tiered') payload.quantity = quantity;
+        if (appliedCoupon) payload.coupon_code = appliedCoupon.code;
+
+        // Passed undefined for affiliateCode for now (should come from context/cookies)
+        paymentApi.initiateCheckout(planId, undefined, appliedCoupon?.code, plan?.type === 'donation' ? donationAmount : undefined, plan?.type === 'tiered' ? quantity : undefined)
+            .then(data => setClientSecret(data.client_secret))
+            .catch(err => {
+                console.error(err);
+                if (err.response?.status === 401 || err.response?.status === 403) {
+                    window.location.href = '/login';
+                } else {
+                    setCheckoutError("Failed to initialize checkout. Please try again.");
+                }
+            });
+    };
+
+    // Re-initiate checkout if coupon changes? 
+    // Ideally we should update the PaymentIntent (requires backend Update endpoint).
+    // For simplicity, we'll force re-creation of PaymentIntent by clearing clientSecret.
+    // NOTE: This creates abandoned PaymentIntents in Stripe, but okay for MVP/Demo.
+    useEffect(() => {
+        if (appliedCoupon && step === 'payment') {
+            setClientSecret(""); // Trigger re-init
+            // initiateCheckout will be called by the effect above because clientSecret became empty
+        }
+    }, [appliedCoupon]);
+
+
+    const handleApplyCoupon = async () => {
+        if (!couponCode) return;
+        setValidatingCoupon(true);
+        setCouponError("");
+        try {
+            const res = await fetch('http://localhost:8080/coupons/validate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({ code: couponCode, plan_id: planId })
+            });
+
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error || 'Invalid coupon');
+            }
+
+            const data = await res.json();
+            setAppliedCoupon({
+                code: data.coupon.code,
+                discount_amount: data.coupon.discount_amount,
+                discount_type: data.coupon.discount_type
+            });
+            setCouponCode("");
+            // setClientSecret(""); // This triggers re-init via effect
+        } catch (err: any) {
+            setCouponError(err.message);
+            setAppliedCoupon(null);
+        } finally {
+            setValidatingCoupon(false);
+        }
+    };
+
+    const handleRemoveCoupon = () => {
+        setAppliedCoupon(null);
+        setClientSecret(""); // Trigger re-init without coupon
+    };
 
     if (isPlanLoading) {
         return <div className="min-h-screen flex items-center justify-center">Loading plan details...</div>;
@@ -188,8 +249,39 @@ export const CheckoutPage = () => {
                         {plan.type === 'donation' && <span> (${donationAmount})</span>}
                         {plan.type === 'tiered' && <span> ({quantity} items)</span>}
                     </CardDescription>
+
+                    {/* Price Summary */}
+                    {appliedCoupon && (
+                        <div className="mt-2 text-sm bg-green-50 text-green-700 p-2 rounded flex justify-between items-center">
+                            <span>
+                                Coupon <strong>{appliedCoupon.code}</strong> applied!
+                                ({appliedCoupon.discount_type === 'percent' ? `${appliedCoupon.discount_amount}%` : `$${appliedCoupon.discount_amount}`} off)
+                            </span>
+                            <Button variant="ghost" size="sm" className="h-6 px-2 ml-2 text-green-700 hover:text-green-900" onClick={handleRemoveCoupon}>
+                                Remove
+                            </Button>
+                        </div>
+                    )}
                 </CardHeader>
-                <CardContent className="pt-6">
+                <CardContent className="pt-6 space-y-6">
+
+                    {/* Coupon Input */}
+                    {!appliedCoupon && !clientSecret.startsWith('pi_mock') && (
+                        <div className="flex gap-2">
+                            <Input
+                                placeholder="Have a coupon code?"
+                                value={couponCode}
+                                onChange={(e) => setCouponCode(e.target.value)}
+                                className="text-sm"
+                            />
+                            <Button variant="outline" onClick={handleApplyCoupon} disabled={!couponCode || validatingCoupon}>
+                                {validatingCoupon ? '...' : 'Apply'}
+                            </Button>
+                        </div>
+                    )}
+                    {couponError && <p className="text-xs text-red-500">{couponError}</p>}
+
+                    {/* Stripe Element */}
                     {clientSecret && clientSecret.startsWith('pi_mock') ? (
                         <div className="space-y-4">
                             <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-md text-sm">
@@ -216,3 +308,4 @@ export const CheckoutPage = () => {
         </div>
     );
 };
+
