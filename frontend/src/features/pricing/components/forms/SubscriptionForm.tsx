@@ -59,15 +59,32 @@ export const SubscriptionForm = ({ config, onChange }: Props) => {
                 </div>
             </div>
 
-            <div className="space-y-2">
-                <Label>Trial Days (Optional)</Label>
-                <Input
-                    type="number"
-                    min="0"
-                    value={config.trial_days || ''}
-                    onChange={(e) => onChange({ ...config, trial_days: Number(e.target.value) })}
-                    placeholder="e.g. 7"
-                />
+            <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <Label>Setup Fee (Optional)</Label>
+                    <div className="relative">
+                        <span className="absolute left-3 top-2.5 text-slate-500">$</span>
+                        <Input
+                            type="number"
+                            min="0"
+                            value={config.setup_fee || ''}
+                            onChange={(e) => onChange({ ...config, setup_fee: Number(e.target.value) })}
+                            className="pl-7"
+                            placeholder="e.g. 10.00"
+                        />
+                    </div>
+                </div>
+
+                <div className="space-y-2">
+                    <Label>Trial Days (Optional)</Label>
+                    <Input
+                        type="number"
+                        min="0"
+                        value={config.trial_days || ''}
+                        onChange={(e) => onChange({ ...config, trial_days: Number(e.target.value) })}
+                        placeholder="e.g. 7"
+                    />
+                </div>
             </div>
         </div>
     );

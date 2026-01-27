@@ -50,8 +50,34 @@ func (s *PricingServiceImpl) CreatePlan(ctx context.Context, plan *domain.Pricin
 		if plan.DonationConfig == nil || plan.DonationConfig.MinAmount < 0 {
 			return errors.New("invalid donation config")
 		}
+	case domain.PricingTypeBundle:
+		if plan.BundleConfig == nil || plan.BundleConfig.Price < 0 || len(plan.BundleConfig.IncludedProductIDs) == 0 {
+			return errors.New("invalid bundle config (must have price and included products)")
+		}
 	default:
 		return errors.New("unknown pricing type")
+	}
+
+	// 3. Constraints Validation
+	if plan.LimitedSell != nil {
+		if plan.LimitedSell.MaxQuantity <= 0 {
+			return errors.New("max quantity for limited sell must be greater than 0")
+		}
+	}
+
+	if plan.EarlyBird != nil {
+		if plan.EarlyBird.DiscountAmount <= 0 {
+			return errors.New("early bird discount amount must be greater than 0")
+		}
+		if plan.EarlyBird.Deadline.Before(time.Now()) {
+			return errors.New("early bird deadline must be in the future")
+		}
+	}
+
+	if plan.AccessDuration != nil {
+		if plan.AccessDuration.DurationDays <= 0 {
+			return errors.New("access duration days must be greater than 0")
+		}
 	}
 
 	plan.CreatedAt = time.Now()

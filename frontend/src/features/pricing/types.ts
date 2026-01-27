@@ -1,4 +1,4 @@
-export type PricingType = 'one_time' | 'subscription' | 'split' | 'tiered' | 'donation';
+export type PricingType = 'one_time' | 'subscription' | 'split' | 'tiered' | 'donation' | 'bundle';
 export type RecurringInterval = 'month' | 'year' | 'week' | 'day';
 
 
@@ -11,6 +11,7 @@ export interface OneTimeConfig {
 export interface SubscriptionConfig {
     price: number;
     original_price?: number;
+    setup_fee?: number;
     currency: string;
     interval: RecurringInterval;
     trial_days?: number;
@@ -42,6 +43,12 @@ export interface DonationConfig {
     currency: string;
 }
 
+export interface BundleConfig {
+    price: number;
+    original_price?: number;
+    included_product_ids: string[];
+}
+
 // Constraints
 export interface LimitedSellConfig {
     max_quantity: number;
@@ -58,12 +65,13 @@ export interface AccessConfig {
 }
 
 export interface PricingPlan {
-    id: string;
-    product_id: string; // Membership ID
+    id?: string;
+    product_id: string; // The main product this plan is for
     name: string;
     description: string;
     type: PricingType;
-    values: string[]; // Benefits list
+    is_active: boolean;
+    values: string[]; // features/benefits
     allow_coupons?: boolean;
 
     // Polymorphic Configs
@@ -72,14 +80,19 @@ export interface PricingPlan {
     split_config?: SplitConfig;
     tiered_config?: TieredConfig;
     donation_config?: DonationConfig;
+    bundle_config?: BundleConfig;
+    upsell_config?: UpsellConfig;
 
     // Constraints
-    limited_sell?: LimitedSellConfig;
-    early_bird?: EarlyBirdConfig;
-    access_duration?: AccessConfig; // null = lifetime
+    limited_sell?: { max_quantity: number, sold_count: number };
+    early_bird?: { discount_amount: number, deadline: string };
+    access_duration?: { duration_days: number };
 
-    is_active: boolean;
     created_at: string;
+}
+
+export interface UpsellConfig {
+    upsell_product_ids: string[];
 }
 
 export interface Membership {

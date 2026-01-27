@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import { CreditCard, Repeat, Split, Layers, Heart, CheckCircle2 } from 'lucide-react';
+import { CreditCard, Repeat, Split, Layers, Heart, CheckCircle2, Package } from 'lucide-react';
 import { PricingTypeCard } from './PricingTypeCard';
 import { OneTimeForm } from './forms/OneTimeForm';
 import { SubscriptionForm } from './forms/SubscriptionForm';
 import { SplitPaymentForm } from './forms/SplitPaymentForm';
 import { TieredForm } from './forms/TieredForm';
 import { DonationForm } from './forms/DonationForm';
-import type { PricingType, OneTimeConfig, SubscriptionConfig, SplitConfig, TieredConfig, DonationConfig } from '../types';
+import { BundleForm } from './forms/BundleForm';
+import { UpsellForm } from './forms/UpsellForm';
+import type { PricingType, OneTimeConfig, SubscriptionConfig, SplitConfig, TieredConfig, DonationConfig, BundleConfig, UpsellConfig } from '../types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -30,6 +32,7 @@ export const PricingForm = () => {
     const [earlyBirdEnabled, setEarlyBirdEnabled] = useState(false);
     const [earlyBirdDiscount, setEarlyBirdDiscount] = useState<number>(0);
     const [earlyBirdDeadline, setEarlyBirdDeadline] = useState<string>('');
+    const [upsellEnabled, setUpsellEnabled] = useState(false);
 
     // Config States (Partial to allow empty init)
     const [oneTimeConfig, setOneTimeConfig] = useState<Partial<OneTimeConfig>>({ price: 50, currency: 'USD' });
@@ -37,6 +40,8 @@ export const PricingForm = () => {
     const [splitConfig, setSplitConfig] = useState<Partial<SplitConfig>>({ total_amount: 100, installment_count: 3, interval: 'month', currency: 'USD' });
     const [tieredConfig, setTieredConfig] = useState<Partial<TieredConfig>>({ tiers: [] });
     const [donationConfig, setDonationConfig] = useState<Partial<DonationConfig>>({ min_amount: 5, currency: 'USD' });
+    const [bundleConfig, setBundleConfig] = useState<Partial<BundleConfig>>({ price: 99, included_product_ids: [] });
+    const [upsellConfig, setUpsellConfig] = useState<Partial<UpsellConfig>>({ upsell_product_ids: [] });
 
     const createPlanMutation = useCreatePlan();
 
@@ -74,12 +79,17 @@ export const PricingForm = () => {
             };
         }
 
+        if (upsellEnabled) {
+            payload.upsell_config = upsellConfig;
+        }
+
         switch (selectedType) {
             case 'one_time': payload.one_time_config = oneTimeConfig; break;
             case 'subscription': payload.subscription_config = subConfig; break;
             case 'split': payload.split_config = splitConfig; break;
             case 'tiered': payload.tiered_config = tieredConfig; break;
             case 'donation': payload.donation_config = donationConfig; break;
+            case 'bundle': payload.bundle_config = bundleConfig; break;
         }
 
         createPlanMutation.mutate(payload);
@@ -108,9 +118,13 @@ export const PricingForm = () => {
                 return `From $${Math.min(...tieredConfig.tiers.map(t => t.unit_price))}`;
             case 'donation':
                 return `Min $${donationConfig.min_amount || 0}`;
+            case 'bundle':
+                current = bundleConfig.price || 0;
+                original = bundleConfig.original_price || 0;
+                break;
         }
 
-        if (original > current && (selectedType === 'one_time' || selectedType === 'subscription' || selectedType === 'split')) {
+        if (original > current && (selectedType === 'one_time' || selectedType === 'subscription' || selectedType === 'split' || selectedType === 'bundle')) {
             return (
                 <div className="flex flex-col">
                     <span className="text-lg text-slate-400 line-through decoration-slate-400 decoration-2">${original}</span>
@@ -125,10 +139,13 @@ export const PricingForm = () => {
     const renderPreviewSubtitle = () => {
         switch (selectedType) {
             case 'one_time': return accessType === 'lifetime' ? 'Lifetime access' : `${accessDuration} days access`;
-            case 'subscription': return `/${subConfig.interval || 'month'}`;
+            case 'subscription':
+                const setupFeeText = subConfig.setup_fee ? ` + $${subConfig.setup_fee} setup fee` : '';
+                return `/${subConfig.interval || 'month'}${setupFeeText}`;
             case 'split': return `Total (in ${splitConfig.installment_count || 1} installments)`;
             case 'tiered': return 'Tiered Pricing';
             case 'donation': return 'Pay what you want';
+            case 'bundle': return `${bundleConfig.included_product_ids?.length || 0} Products Included`;
             default: return '';
         }
     };
@@ -173,6 +190,13 @@ export const PricingForm = () => {
                         icon={Heart}
                         isSelected={selectedType === 'donation'}
                         onClick={() => setSelectedType('donation')}
+                    />
+                    <PricingTypeCard
+                        title="Bundle"
+                        description="Sell multiple products together"
+                        icon={Package}
+                        isSelected={selectedType === 'bundle'}
+                        onClick={() => setSelectedType('bundle')}
                     />
                 </div>
             </div>
@@ -230,6 +254,7 @@ export const PricingForm = () => {
                         {selectedType === 'split' && <SplitPaymentForm config={splitConfig} onChange={setSplitConfig} />}
                         {selectedType === 'tiered' && <TieredForm config={tieredConfig} onChange={setTieredConfig} />}
                         {selectedType === 'donation' && <DonationForm config={donationConfig} onChange={setDonationConfig} />}
+                        {selectedType === 'bundle' && <BundleForm config={bundleConfig} onChange={setBundleConfig} />}
                     </div>
 
                     {/* Course Access Duration */}
@@ -354,6 +379,26 @@ export const PricingForm = () => {
                                     </div>
                                 )}
                             </div>
+
+                            {/* Upsells */}
+                            <div className="p-4 space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm font-medium text-slate-700">Upsells (Order Bumps)</span>
+                                    <div
+                                        className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors ${upsellEnabled ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                                        onClick={() => setUpsellEnabled(!upsellEnabled)}
+                                    >
+                                        <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${upsellEnabled ? 'translate-x-5' : ''}`}></div>
+                                    </div>
+                                </div>
+
+                                {upsellEnabled && (
+                                    <div className="animate-in slide-in-from-top-1">
+                                        <UpsellForm config={upsellConfig} onChange={setUpsellConfig} />
+                                    </div>
+                                )}
+                            </div>
+
                         </div>
                     </div>
                 </div>
@@ -364,7 +409,7 @@ export const PricingForm = () => {
                 <div className="sticky top-6">
                     <div className="bg-white rounded-xl border border-slate-200 shadow-lg overflow-hidden p-6 space-y-6">
                         <div className="flex justify-between items-start">
-                            <h3 className="font-semibold text-slate-500 text-xs uppercase tracking-wider">Live Preview</h3>
+                            <h3 className="font-semibold text-slate-500 text-slate-500 text-xs uppercase tracking-wider">Live Preview</h3>
                             <span className="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-medium">
                                 Preview
                             </span>
@@ -392,6 +437,7 @@ export const PricingForm = () => {
                                 {selectedType === 'split' && <Split className="w-5 h-5 text-indigo-600" />}
                                 {selectedType === 'tiered' && <Layers className="w-5 h-5 text-indigo-600" />}
                                 {selectedType === 'donation' && <Heart className="w-5 h-5 text-indigo-600" />}
+                                {selectedType === 'bundle' && <Package className="w-5 h-5 text-indigo-600" />}
                                 <div>
                                     <p className="font-semibold text-indigo-900 leading-tight">{name || 'Plan Name'}</p>
                                     <p className="text-xs text-indigo-700">{selectedType.replace('_', ' ')}</p>

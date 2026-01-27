@@ -15,6 +15,7 @@ const (
 	PricingTypeSplit        PricingType = "split"
 	PricingTypeTiered       PricingType = "tiered"
 	PricingTypeDonation     PricingType = "donation"
+	PricingTypeBundle       PricingType = "bundle"
 )
 
 // RecurringInterval defines the billing cycle for subscriptions
@@ -45,11 +46,13 @@ type PricingPlan struct {
 	SplitConfig        *SplitConfig        `bson:"split_config,omitempty" json:"split_config,omitempty"`
 	TieredConfig       *TieredConfig       `bson:"tiered_config,omitempty" json:"tiered_config,omitempty"`
 	DonationConfig     *DonationConfig     `bson:"donation_config,omitempty" json:"donation_config,omitempty"`
+	BundleConfig       *BundleConfig       `bson:"bundle_config,omitempty" json:"bundle_config,omitempty"`
 
 	// Constraints
 	LimitedSell    *LimitedSellConfig `bson:"limited_sell,omitempty" json:"limited_sell,omitempty"`
 	EarlyBird      *EarlyBirdConfig   `bson:"early_bird,omitempty" json:"early_bird,omitempty"`
 	AccessDuration *AccessConfig      `bson:"access_duration,omitempty" json:"access_duration,omitempty"` // null = lifetime
+	UpsellConfig   *UpsellConfig      `bson:"upsell_config,omitempty" json:"upsell_config,omitempty"`
 
 	CreatedAt time.Time `bson:"created_at" json:"created_at"`
 	UpdatedAt time.Time `bson:"updated_at" json:"updated_at"`
@@ -66,6 +69,7 @@ type OneTimeConfig struct {
 type SubscriptionConfig struct {
 	Price         float64           `bson:"price" json:"price"`
 	OriginalPrice float64           `bson:"original_price,omitempty" json:"original_price,omitempty"`
+	SetupFee      float64           `bson:"setup_fee,omitempty" json:"setup_fee,omitempty"`
 	Currency      string            `bson:"currency" json:"currency"`
 	Interval      RecurringInterval `bson:"interval" json:"interval"`
 	TrialDays     int               `bson:"trial_days,omitempty" json:"trial_days,omitempty"`
@@ -95,6 +99,16 @@ type DonationConfig struct {
 	MinAmount       float64 `bson:"min_amount" json:"min_amount"`
 	SuggestedAmount float64 `bson:"suggested_amount,omitempty" json:"suggested_amount,omitempty"`
 	Currency        string  `bson:"currency" json:"currency"`
+}
+
+type BundleConfig struct {
+	Price              float64              `bson:"price" json:"price"`
+	OriginalPrice      float64              `bson:"original_price,omitempty" json:"original_price,omitempty"`
+	IncludedProductIDs []primitive.ObjectID `bson:"included_product_ids" json:"included_product_ids"`
+}
+
+type UpsellConfig struct {
+	UpsellProductIDs []primitive.ObjectID `bson:"upsell_product_ids" json:"upsell_product_ids"`
 }
 
 // --- Constraints ---
