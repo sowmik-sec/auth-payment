@@ -18,15 +18,29 @@ export const SplitPaymentForm = ({ config, onChange }: Props) => {
         <div className="space-y-4">
             <div className="space-y-2">
                 <Label>Total Price</Label>
-                <div className="relative">
-                    <span className="absolute left-3 top-2.5 text-slate-500">$</span>
-                    <Input
-                        type="number"
-                        min="0"
-                        value={config.total_amount || ''}
-                        onChange={(e) => onChange({ ...config, total_amount: Number(e.target.value) })}
-                        className="pl-7"
-                    />
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="relative">
+                        <span className="absolute left-3 top-2.5 text-slate-500">$</span>
+                        <Input
+                            type="number"
+                            min="0"
+                            placeholder="Original"
+                            value={config.original_price || ''}
+                            onChange={(e) => onChange({ ...config, original_price: Number(e.target.value) })}
+                            className="pl-7"
+                        />
+                    </div>
+                    <div className="relative">
+                        <span className="absolute left-3 top-2.5 text-slate-500">$</span>
+                        <Input
+                            type="number"
+                            min="0"
+                            placeholder="Offer"
+                            value={config.total_amount || ''}
+                            onChange={(e) => onChange({ ...config, total_amount: Number(e.target.value) })}
+                            className="pl-7"
+                        />
+                    </div>
                 </div>
             </div>
 

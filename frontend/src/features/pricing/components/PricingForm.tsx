@@ -18,6 +18,19 @@ export const PricingForm = () => {
     const [description, setDescription] = useState('');
     const [selectedType, setSelectedType] = useState<PricingType>('one_time');
 
+    // Features (Benefits)
+    const [features, setFeatures] = useState<string[]>(['Access to all content', 'Priority support']);
+
+    // Constraints State
+    const [accessType, setAccessType] = useState<'lifetime' | 'limited'>('lifetime');
+    const [accessDuration, setAccessDuration] = useState<number>(365);
+    const [allowCoupons, setAllowCoupons] = useState(false);
+    const [limitedSellEnabled, setLimitedSellEnabled] = useState(false);
+    const [maxQuantity, setMaxQuantity] = useState<number>(100);
+    const [earlyBirdEnabled, setEarlyBirdEnabled] = useState(false);
+    const [earlyBirdDiscount, setEarlyBirdDiscount] = useState<number>(0);
+    const [earlyBirdDeadline, setEarlyBirdDeadline] = useState<string>('');
+
     // Config States (Partial to allow empty init)
     const [oneTimeConfig, setOneTimeConfig] = useState<Partial<OneTimeConfig>>({ price: 50, currency: 'USD' });
     const [subConfig, setSubConfig] = useState<Partial<SubscriptionConfig>>({ price: 29, interval: 'month', currency: 'USD' });
@@ -27,14 +40,39 @@ export const PricingForm = () => {
 
     const createPlanMutation = useCreatePlan();
 
+    const handleFeatureChange = (index: number, value: string) => {
+        const newFeatures = [...features];
+        newFeatures[index] = value;
+        setFeatures(newFeatures);
+    };
+
+    const addFeature = () => setFeatures([...features, '']);
+    const removeFeature = (index: number) => setFeatures(features.filter((_, i) => i !== index));
+
     const handleSubmit = () => {
         const payload: any = {
             name,
             description,
             type: selectedType,
             product_id: "650000000000000000000001", // Dummy ID
-            values: ["Recurring revenue", "Upgrade paths"],
+            values: features.filter(f => f.trim() !== ''),
+            allow_coupons: allowCoupons,
         };
+
+        if (accessType === 'limited') {
+            payload.access_duration = { duration_days: accessDuration };
+        }
+
+        if (limitedSellEnabled) {
+            payload.limited_sell = { max_quantity: maxQuantity, sold_count: 0 };
+        }
+
+        if (earlyBirdEnabled) {
+            payload.early_bird = {
+                discount_amount: earlyBirdDiscount,
+                deadline: new Date(earlyBirdDeadline).toISOString()
+            };
+        }
 
         switch (selectedType) {
             case 'one_time': payload.one_time_config = oneTimeConfig; break;
@@ -47,29 +85,46 @@ export const PricingForm = () => {
         createPlanMutation.mutate(payload);
     };
 
-    // Helper to render preview price
+    // Helper to render preview price with discount logic
     const renderPreviewPrice = () => {
+        let original = 0;
+        let current = 0;
+
         switch (selectedType) {
             case 'one_time':
-                return `$${oneTimeConfig.price || 0}`;
+                current = oneTimeConfig.price || 0;
+                original = oneTimeConfig.original_price || 0;
+                break;
             case 'subscription':
-                return `$${subConfig.price || 0}`;
+                current = subConfig.price || 0;
+                original = subConfig.original_price || 0;
+                break;
             case 'split':
-                return `$${splitConfig.total_amount || 0}`;
+                current = splitConfig.total_amount || 0;
+                original = splitConfig.original_price || 0;
+                break;
             case 'tiered':
                 if (!tieredConfig.tiers?.length) return '$0';
                 return `From $${Math.min(...tieredConfig.tiers.map(t => t.unit_price))}`;
             case 'donation':
                 return `Min $${donationConfig.min_amount || 0}`;
-            default:
-                return '$0';
         }
+
+        if (original > current && (selectedType === 'one_time' || selectedType === 'subscription' || selectedType === 'split')) {
+            return (
+                <div className="flex flex-col">
+                    <span className="text-lg text-slate-400 line-through decoration-slate-400 decoration-2">${original}</span>
+                    <span>${current}</span>
+                </div>
+            );
+        }
+        return `$${current || 0}`;
     };
 
     // Helper for preview subtitle
     const renderPreviewSubtitle = () => {
         switch (selectedType) {
-            case 'one_time': return 'Lifetime access';
+            case 'one_time': return accessType === 'lifetime' ? 'Lifetime access' : `${accessDuration} days access`;
             case 'subscription': return `/${subConfig.interval || 'month'}`;
             case 'split': return `Total (in ${splitConfig.installment_count || 1} installments)`;
             case 'tiered': return 'Tiered Pricing';
@@ -134,6 +189,39 @@ export const PricingForm = () => {
                             <Label>Description</Label>
                             <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="e.g. Best for beginners" />
                         </div>
+
+                        {/* Features Editor */}
+                        <div className="space-y-2">
+                            <Label>Plan Benefits (Features)</Label>
+                            <div className="space-y-2">
+                                {features.map((feature, index) => (
+                                    <div key={index} className="flex gap-2">
+                                        <Input
+                                            value={feature}
+                                            onChange={(e) => handleFeatureChange(index, e.target.value)}
+                                            placeholder="e.g. 24/7 Support"
+                                        />
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => removeFeature(index)}
+                                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                        >
+                                            ×
+                                        </Button>
+                                    </div>
+                                ))}
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={addFeature}
+                                    className="w-full text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+                                >
+                                    + Add Benefit
+                                </Button>
+                            </div>
+                        </div>
                     </div>
 
                     <div className="border-t pt-6">
@@ -143,6 +231,131 @@ export const PricingForm = () => {
                         {selectedType === 'tiered' && <TieredForm config={tieredConfig} onChange={setTieredConfig} />}
                         {selectedType === 'donation' && <DonationForm config={donationConfig} onChange={setDonationConfig} />}
                     </div>
+
+                    {/* Course Access Duration */}
+                    <div className="space-y-3 pt-2">
+                        <div className="flex items-center gap-2">
+                            <Label className="text-base">Course access duration</Label>
+                            <div className="text-slate-400" title="How long user keeps access">ⓘ</div>
+                        </div>
+                        <div className="border rounded-md p-4 space-y-3">
+                            <div className="flex items-center space-x-2">
+                                <input
+                                    type="radio"
+                                    id="access-lifetime"
+                                    checked={accessType === 'lifetime'}
+                                    onChange={() => setAccessType('lifetime')}
+                                    className="text-indigo-600 focus:ring-indigo-500"
+                                    name="accessType"
+                                />
+                                <Label htmlFor="access-lifetime" className="font-normal cursor-pointer">Lifetime access</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <input
+                                    type="radio"
+                                    id="access-limited"
+                                    checked={accessType === 'limited'}
+                                    onChange={() => setAccessType('limited')}
+                                    className="text-indigo-600 focus:ring-indigo-500"
+                                    name="accessType"
+                                />
+                                <Label htmlFor="access-limited" className="font-normal cursor-pointer">Limited time access</Label>
+                            </div>
+
+                            {accessType === 'limited' && (
+                                <div className="pl-6 pt-1">
+                                    <Label className="text-xs text-slate-500 mb-1 block">Duration (days)</Label>
+                                    <Input
+                                        type="number"
+                                        value={accessDuration}
+                                        onChange={(e) => setAccessDuration(Number(e.target.value))}
+                                        className="w-32 h-8"
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Advance Options */}
+                    <div className="space-y-4 pt-2">
+                        <div className="flex items-center gap-2">
+                            <Label className="text-base">Advance option</Label>
+                            <div className="text-slate-400" title="Extra settings">ⓘ</div>
+                        </div>
+
+                        <div className="border rounded-md divide-y">
+                            {/* Coupon Code */}
+                            <div className="flex items-center justify-between p-4">
+                                <span className="text-sm font-medium text-slate-700">Coupon code</span>
+                                <div
+                                    className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors ${allowCoupons ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                                    onClick={() => setAllowCoupons(!allowCoupons)}
+                                >
+                                    <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${allowCoupons ? 'translate-x-5' : ''}`}></div>
+                                </div>
+                            </div>
+
+                            {/* Limited Sell */}
+                            <div className="p-4 space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm font-medium text-slate-700">Limited sell</span>
+                                    <div
+                                        className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors ${limitedSellEnabled ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                                        onClick={() => setLimitedSellEnabled(!limitedSellEnabled)}
+                                    >
+                                        <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${limitedSellEnabled ? 'translate-x-5' : ''}`}></div>
+                                    </div>
+                                </div>
+                                {limitedSellEnabled && (
+                                    <div className="flex items-center gap-2 animate-in slide-in-from-top-1">
+                                        <Label className="text-xs">Max Quantity:</Label>
+                                        <Input
+                                            type="number"
+                                            value={maxQuantity}
+                                            onChange={(e) => setMaxQuantity(Number(e.target.value))}
+                                            className="w-24 h-8"
+                                        />
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Early Bird */}
+                            <div className="p-4 space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm font-medium text-slate-700">Early bird pricing</span>
+                                    <div
+                                        className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors ${earlyBirdEnabled ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                                        onClick={() => setEarlyBirdEnabled(!earlyBirdEnabled)}
+                                    >
+                                        <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${earlyBirdEnabled ? 'translate-x-5' : ''}`}></div>
+                                    </div>
+                                </div>
+                                {earlyBirdEnabled && (
+                                    <div className="grid grid-cols-2 gap-3 animate-in slide-in-from-top-1">
+                                        <div className="space-y-1">
+                                            <Label className="text-xs">Discount Amount</Label>
+                                            <Input
+                                                type="number"
+                                                value={earlyBirdDiscount}
+                                                onChange={(e) => setEarlyBirdDiscount(Number(e.target.value))}
+                                                className="h-8"
+                                                placeholder="e.g. 10.0"
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label className="text-xs">Deadline</Label>
+                                            <Input
+                                                type="date"
+                                                value={earlyBirdDeadline}
+                                                onChange={(e) => setEarlyBirdDeadline(e.target.value)}
+                                                className="h-8"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -151,8 +364,10 @@ export const PricingForm = () => {
                 <div className="sticky top-6">
                     <div className="bg-white rounded-xl border border-slate-200 shadow-lg overflow-hidden p-6 space-y-6">
                         <div className="flex justify-between items-start">
-                            <h3 className="font-semibold text-slate-500 text-sm">Preview</h3>
-                            {/* Eye icon or similar could go here */}
+                            <h3 className="font-semibold text-slate-500 text-xs uppercase tracking-wider">Live Preview</h3>
+                            <span className="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-medium">
+                                Preview
+                            </span>
                         </div>
 
                         <div>
@@ -163,7 +378,14 @@ export const PricingForm = () => {
                             </p>
                         </div>
 
-                        <div className="p-4 bg-indigo-50 rounded-lg border border-indigo-100">
+                        <div className="p-4 bg-indigo-50 rounded-lg border border-indigo-100 relative overflow-hidden">
+                            {/* Optional: Add badge for limited sell or sale */}
+                            {limitedSellEnabled && (
+                                <div className="absolute top-0 right-0 bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-bl-lg font-bold">
+                                    ONLY {maxQuantity} LEFT
+                                </div>
+                            )}
+
                             <div className="flex items-center gap-3 mb-2">
                                 {selectedType === 'one_time' && <CreditCard className="w-5 h-5 text-indigo-600" />}
                                 {selectedType === 'subscription' && <Repeat className="w-5 h-5 text-indigo-600" />}
@@ -171,33 +393,44 @@ export const PricingForm = () => {
                                 {selectedType === 'tiered' && <Layers className="w-5 h-5 text-indigo-600" />}
                                 {selectedType === 'donation' && <Heart className="w-5 h-5 text-indigo-600" />}
                                 <div>
-                                    <p className="font-semibold text-indigo-900 leading-tight">{name}</p>
+                                    <p className="font-semibold text-indigo-900 leading-tight">{name || 'Plan Name'}</p>
                                     <p className="text-xs text-indigo-700">{selectedType.replace('_', ' ')}</p>
                                 </div>
                             </div>
                         </div>
 
-                        <Button
-                            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-200"
-                            size="lg"
-                            onClick={handleSubmit}
-                            disabled={createPlanMutation.isPending}
-                        >
-                            {createPlanMutation.isPending ? 'Creating...' : 'Buy Now'}
-                        </Button>
+                        <div className="space-y-2">
+                            <Button
+                                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-200"
+                                size="lg"
+                                onClick={handleSubmit}
+                                disabled={createPlanMutation.isPending}
+                            >
+                                {createPlanMutation.isPending ? 'Creating Plan...' : 'Create Plan'}
+                            </Button>
+                            <p className="text-[10px] text-center text-slate-400">
+                                (Public button label will be "Get Started")
+                            </p>
+                        </div>
+
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 hover:opacity-100 bg-white/50 transition-opacity">
+                            <span className="bg-black/80 text-white px-3 py-1 rounded-full text-xs font-medium">Preview Mode</span>
+                        </div>
 
                         <div className="pt-4 border-t space-y-2">
                             <h4 className="font-semibold text-slate-900 text-sm">Plan Benefits</h4>
                             <ul className="space-y-1">
-                                <li className="text-xs text-slate-600 flex gap-2">
-                                    <CheckCircle2 className="w-3 h-3 text-green-500 flex-shrink-0" /> Recurring revenue
-                                </li>
-                                <li className="text-xs text-slate-600 flex gap-2">
-                                    <CheckCircle2 className="w-3 h-3 text-green-500 flex-shrink-0" /> Access to content
-                                </li>
-                                <li className="text-xs text-slate-600 flex gap-2">
-                                    <CheckCircle2 className="w-3 h-3 text-green-500 flex-shrink-0" /> Community access
-                                </li>
+                                {features.length > 0 ? (
+                                    features.map((feature, i) => (
+                                        feature.trim() && (
+                                            <li key={i} className="text-xs text-slate-600 flex gap-2">
+                                                <CheckCircle2 className="w-3 h-3 text-green-500 flex-shrink-0" /> {feature}
+                                            </li>
+                                        )
+                                    ))
+                                ) : (
+                                    <li className="text-xs text-slate-400 italic">No benefits added yet.</li>
+                                )}
                             </ul>
                         </div>
 

@@ -29,14 +29,15 @@ const (
 
 // PricingPlan represents a polymorphic pricing configuration for a product
 type PricingPlan struct {
-	ID          primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	ProductID   primitive.ObjectID `bson:"product_id" json:"product_id"`
-	CreatorID   primitive.ObjectID `bson:"creator_id" json:"creator_id"`
-	Name        string             `bson:"name" json:"name"`
-	Description string             `bson:"description" json:"description"`
-	Type        PricingType        `bson:"type" json:"type"`
-	IsActive    bool               `bson:"is_active" json:"is_active"`
-	Values      []string           `bson:"values" json:"values"` // List of benefits/features
+	ID           primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	ProductID    primitive.ObjectID `bson:"product_id" json:"product_id"`
+	CreatorID    primitive.ObjectID `bson:"creator_id" json:"creator_id"`
+	Name         string             `bson:"name" json:"name"`
+	Description  string             `bson:"description" json:"description"`
+	Type         PricingType        `bson:"type" json:"type"`
+	IsActive     bool               `bson:"is_active" json:"is_active"`
+	Values       []string           `bson:"values" json:"values"` // List of benefits/features
+	AllowCoupons bool               `bson:"allow_coupons" json:"allow_coupons"`
 
 	// Type-Specific Configurations (Polymorphic)
 	OneTimeConfig      *OneTimeConfig      `bson:"one_time_config,omitempty" json:"one_time_config,omitempty"`
@@ -57,19 +58,22 @@ type PricingPlan struct {
 // --- Specific Configurations ---
 
 type OneTimeConfig struct {
-	Price    float64 `bson:"price" json:"price"`
-	Currency string  `bson:"currency" json:"currency"`
+	Price         float64 `bson:"price" json:"price"`
+	OriginalPrice float64 `bson:"original_price,omitempty" json:"original_price,omitempty"`
+	Currency      string  `bson:"currency" json:"currency"`
 }
 
 type SubscriptionConfig struct {
-	Price     float64           `bson:"price" json:"price"`
-	Currency  string            `bson:"currency" json:"currency"`
-	Interval  RecurringInterval `bson:"interval" json:"interval"`
-	TrialDays int               `bson:"trial_days,omitempty" json:"trial_days,omitempty"`
+	Price         float64           `bson:"price" json:"price"`
+	OriginalPrice float64           `bson:"original_price,omitempty" json:"original_price,omitempty"`
+	Currency      string            `bson:"currency" json:"currency"`
+	Interval      RecurringInterval `bson:"interval" json:"interval"`
+	TrialDays     int               `bson:"trial_days,omitempty" json:"trial_days,omitempty"`
 }
 
 type SplitConfig struct {
 	TotalAmount      float64           `bson:"total_amount" json:"total_amount"`
+	OriginalPrice    float64           `bson:"original_price,omitempty" json:"original_price,omitempty"`
 	Currency         string            `bson:"currency" json:"currency"`
 	InstallmentCount int               `bson:"installment_count" json:"installment_count"`
 	Interval         RecurringInterval `bson:"interval" json:"interval"` // e.g., Monthly
