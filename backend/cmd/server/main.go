@@ -42,7 +42,7 @@ func main() {
 			handler.NewPaymentHandler,
 			handler.NewWalletHandler,
 			handler.NewAffiliateHandler,
-			handler.NewAffiliateHandler,
+
 			handler.NewInvoiceHandler,
 			handler.NewCouponHandler, // Added
 

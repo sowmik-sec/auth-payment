@@ -40,6 +40,10 @@ type PricingPlan struct {
 	Values       []string           `bson:"values" json:"values"` // List of benefits/features
 	AllowCoupons bool               `bson:"allow_coupons" json:"allow_coupons"`
 
+	// Stripe Sync
+	StripeProductID string `bson:"stripe_product_id,omitempty" json:"stripe_product_id,omitempty"`
+	StripePriceID   string `bson:"stripe_price_id,omitempty" json:"stripe_price_id,omitempty"`
+
 	// Type-Specific Configurations (Polymorphic)
 	OneTimeConfig      *OneTimeConfig      `bson:"one_time_config,omitempty" json:"one_time_config,omitempty"`
 	SubscriptionConfig *SubscriptionConfig `bson:"subscription_config,omitempty" json:"subscription_config,omitempty"`

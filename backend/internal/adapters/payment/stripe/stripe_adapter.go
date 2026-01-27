@@ -9,6 +9,8 @@ import (
 	"github.com/stripe/stripe-go/v76"
 	"github.com/stripe/stripe-go/v76/customer"
 	"github.com/stripe/stripe-go/v76/paymentintent"
+	"github.com/stripe/stripe-go/v76/price"
+	"github.com/stripe/stripe-go/v76/product"
 	"github.com/stripe/stripe-go/v76/subscription"
 )
 
@@ -53,6 +55,46 @@ func (s *StripeAdapter) CreatePaymentIntent(ctx context.Context, amount float64,
 	return pi.ClientSecret, nil
 }
 
+func (s *StripeAdapter) CreateProduct(ctx context.Context, name string, description string) (string, error) {
+	if s.AllowMock {
+		return "prod_mock_123", nil
+	}
+
+	params := &stripe.ProductParams{
+		Name:        stripe.String(name),
+		Description: stripe.String(description),
+	}
+	prod, err := product.New(params)
+	if err != nil {
+		return "", err
+	}
+	return prod.ID, nil
+}
+
+func (s *StripeAdapter) CreatePrice(ctx context.Context, productID string, amount float64, currency string, interval string) (string, error) {
+	if s.AllowMock {
+		return "price_mock_123", nil
+	}
+
+	params := &stripe.PriceParams{
+		Product:    stripe.String(productID),
+		UnitAmount: stripe.Int64(int64(amount * 100)),
+		Currency:   stripe.String(currency),
+	}
+
+	if interval != "" {
+		params.Recurring = &stripe.PriceRecurringParams{
+			Interval: stripe.String(interval), // "month", "year", "week", "day"
+		}
+	}
+
+	p, err := price.New(params)
+	if err != nil {
+		return "", err
+	}
+	return p.ID, nil
+}
+
 func (s *StripeAdapter) CreateCustomer(ctx context.Context, email string, name string) (string, error) {
 	if s.AllowMock {
 		return "cus_mock_123", nil
@@ -69,7 +111,7 @@ func (s *StripeAdapter) CreateCustomer(ctx context.Context, email string, name s
 	return c.ID, nil
 }
 
-func (s *StripeAdapter) CreateSubscription(ctx context.Context, customerID string, priceID string) (string, error) {
+func (s *StripeAdapter) CreateSubscription(ctx context.Context, customerID string, priceID string, metadata map[string]string) (string, error) {
 	if s.AllowMock {
 		return "sub_mock_123", nil
 	}
@@ -81,12 +123,25 @@ func (s *StripeAdapter) CreateSubscription(ctx context.Context, customerID strin
 				Price: stripe.String(priceID),
 			},
 		},
+		PaymentBehavior: stripe.String("default_incomplete"),
 	}
+	params.AddExpand("latest_invoice.payment_intent")
+
+	// Attach Metadata
+	for k, v := range metadata {
+		params.AddMetadata(k, v)
+	}
+
 	sub, err := subscription.New(params)
 	if err != nil {
 		return "", err
 	}
-	return sub.ID, nil
+
+	if sub.LatestInvoice.PaymentIntent == nil {
+		return "", nil // No payment needed or error?
+	}
+
+	return sub.LatestInvoice.PaymentIntent.ClientSecret, nil
 }
 
 func (s *StripeAdapter) ConfirmPayment(ctx context.Context, paymentID string) error {

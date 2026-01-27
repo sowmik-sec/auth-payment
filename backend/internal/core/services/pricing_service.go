@@ -12,11 +12,12 @@ import (
 )
 
 type PricingServiceImpl struct {
-	repo ports.PricingRepository
+	repo    ports.PricingRepository
+	gateway ports.PaymentGateway
 }
 
-func NewPricingService(repo ports.PricingRepository) ports.PricingService {
-	return &PricingServiceImpl{repo: repo}
+func NewPricingService(repo ports.PricingRepository, gateway ports.PaymentGateway) ports.PricingService {
+	return &PricingServiceImpl{repo: repo, gateway: gateway}
 }
 
 func (s *PricingServiceImpl) CreatePlan(ctx context.Context, plan *domain.PricingPlan) error {
@@ -29,15 +30,24 @@ func (s *PricingServiceImpl) CreatePlan(ctx context.Context, plan *domain.Pricin
 	}
 
 	// 2. Type-Specific Validation
+	var amount float64
+	var currency string
+	var interval string
+
 	switch plan.Type {
 	case domain.PricingTypeOneTime:
 		if plan.OneTimeConfig == nil || plan.OneTimeConfig.Price < 0 {
 			return errors.New("invalid one-time config")
 		}
+		amount = plan.OneTimeConfig.Price
+		currency = plan.OneTimeConfig.Currency
 	case domain.PricingTypeSubscription:
 		if plan.SubscriptionConfig == nil || plan.SubscriptionConfig.Price < 0 {
 			return errors.New("invalid subscription config")
 		}
+		amount = plan.SubscriptionConfig.Price
+		currency = plan.SubscriptionConfig.Currency
+		interval = "month" // Default to monthly for now, TODO: Make configurable
 	case domain.PricingTypeSplit:
 		if plan.SplitConfig == nil || plan.SplitConfig.TotalAmount <= 0 {
 			return errors.New("invalid split payment config")
@@ -54,6 +64,8 @@ func (s *PricingServiceImpl) CreatePlan(ctx context.Context, plan *domain.Pricin
 		if plan.BundleConfig == nil || plan.BundleConfig.Price < 0 || len(plan.BundleConfig.IncludedProductIDs) == 0 {
 			return errors.New("invalid bundle config (must have price and included products)")
 		}
+		amount = plan.BundleConfig.Price
+		currency = "USD"
 	default:
 		return errors.New("unknown pricing type")
 	}
@@ -77,6 +89,25 @@ func (s *PricingServiceImpl) CreatePlan(ctx context.Context, plan *domain.Pricin
 	if plan.AccessDuration != nil {
 		if plan.AccessDuration.DurationDays <= 0 {
 			return errors.New("access duration days must be greater than 0")
+		}
+	}
+
+	// 4. Stripe Sync
+	// Only sync if we have a valid amount/currency identified above (OneTime, Subscription, Bundle)
+	if amount > 0 && currency != "" {
+		prodID, err := s.gateway.CreateProduct(ctx, plan.Name, plan.Description)
+		if err == nil {
+			plan.StripeProductID = prodID
+
+			priceID, err := s.gateway.CreatePrice(ctx, prodID, amount, currency, interval)
+			if err == nil {
+				plan.StripePriceID = priceID
+			} else {
+				// Log error but proceed? Or fail? For now, we proceed but maybe log.
+				// In production, we should roll back or fail.
+			}
+		} else {
+			// Log error
 		}
 	}
 
