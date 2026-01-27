@@ -39,12 +39,12 @@ func (h *PricingHandler) CreatePlan(c *gin.Context) {
 // ListPlans endpoints
 func (h *PricingHandler) ListPlans(c *gin.Context) {
 	productID := c.Query("productId")
-	if productID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "productId is required"})
-		return
+	var pIDPtr *string
+	if productID != "" {
+		pIDPtr = &productID
 	}
 
-	plans, err := h.service.ListPlansForProduct(c.Request.Context(), productID)
+	plans, err := h.service.ListPlans(c.Request.Context(), pIDPtr)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -53,11 +53,33 @@ func (h *PricingHandler) ListPlans(c *gin.Context) {
 	c.JSON(http.StatusOK, plans)
 }
 
+// GetPlan endpoint
+func (h *PricingHandler) GetPlan(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "plan ID is required"})
+		return
+	}
+
+	plan, err := h.service.GetPlan(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if plan == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "plan not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, plan)
+}
+
 func (h *PricingHandler) RegisterRoutes(router *gin.Engine, middleware gin.HandlerFunc) {
 	pricing := router.Group("/pricing")
 	{
 		// Public or Protected? Let's make List public, Create protected
 		pricing.GET("/plans", h.ListPlans)
+		pricing.GET("/plans/:id", h.GetPlan)
 
 		// Protected
 		pricing.POST("/plans", h.CreatePlan)

@@ -36,8 +36,13 @@ func (r *MongoPricingRepository) GetPlanByID(ctx context.Context, id primitive.O
 	return &plan, nil
 }
 
-func (r *MongoPricingRepository) GetPlansByProductID(ctx context.Context, productID primitive.ObjectID) ([]*domain.PricingPlan, error) {
-	cursor, err := r.collection.Find(ctx, bson.M{"product_id": productID})
+func (r *MongoPricingRepository) GetPlans(ctx context.Context, productID *primitive.ObjectID) ([]*domain.PricingPlan, error) {
+	filter := bson.M{}
+	if productID != nil {
+		filter["product_id"] = *productID
+	}
+
+	cursor, err := r.collection.Find(ctx, filter)
 	if err != nil {
 		return nil, err
 	}

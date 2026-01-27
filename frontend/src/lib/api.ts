@@ -6,6 +6,16 @@ export const api = axios.create({
 });
 
 // Response interceptor for refreshing tokens
+// Request interceptor to attach token
+api.interceptors.request.use((config) => {
+    const token = localStorage.getItem('access_token');
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+});
+
+// Response interceptor for refreshing tokens
 api.interceptors.response.use(
     (response) => response,
     async (error) => {
@@ -18,14 +28,22 @@ api.interceptors.response.use(
             try {
                 // Call refresh endpoint
                 // valid refresh token is expected in httpOnly cookie
-                await api.post('/auth/refresh');
+                const { data } = await api.post('/auth/refresh');
+
+                // Save new access token
+                if (data.access_token) {
+                    localStorage.setItem('access_token', data.access_token);
+                    // Update header for retry
+                    originalRequest.headers.Authorization = `Bearer ${data.access_token}`;
+                }
 
                 // Retry original request
                 return api(originalRequest);
             } catch (refreshError) {
-                // Refresh failed (token expired/invalid), redirect to login
-                window.location.href = '/login';
-                return Promise.reject(refreshError);
+                // Refresh failed (token expired/invalid)
+                localStorage.removeItem('access_token'); // Clear invalid token
+                // Return the original 401 error so components know it's an auth failure
+                return Promise.reject(error);
             }
         }
         return Promise.reject(error);

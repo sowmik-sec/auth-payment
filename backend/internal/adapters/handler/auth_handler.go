@@ -37,7 +37,22 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, user)
+	// Auto-login: Generate tokens
+	accessToken, refreshToken, err := h.authService.Login(c.Request.Context(), req.Email, req.Password)
+	if err != nil {
+		// If login fails after register (unlikely), just return user created 201
+		c.JSON(http.StatusCreated, user)
+		return
+	}
+
+	// Set refresh token in HttpOnly cookie
+	c.SetCookie("refresh_token", refreshToken, 3600*24*7, "/", "", false, true)
+
+	c.JSON(http.StatusCreated, gin.H{
+		"user":          user,
+		"access_token":  accessToken,
+		"refresh_token": refreshToken,
+	})
 }
 
 type loginRequest struct {

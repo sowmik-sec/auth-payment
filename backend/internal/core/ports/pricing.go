@@ -11,7 +11,7 @@ import (
 type PricingRepository interface {
 	CreatePlan(ctx context.Context, plan *domain.PricingPlan) error
 	GetPlanByID(ctx context.Context, id primitive.ObjectID) (*domain.PricingPlan, error)
-	GetPlansByProductID(ctx context.Context, productID primitive.ObjectID) ([]*domain.PricingPlan, error)
+	GetPlans(ctx context.Context, productID *primitive.ObjectID) ([]*domain.PricingPlan, error)
 	UpdatePlan(ctx context.Context, plan *domain.PricingPlan) error
 	DeletePlan(ctx context.Context, id primitive.ObjectID) error
 }
@@ -19,7 +19,7 @@ type PricingRepository interface {
 type PricingService interface {
 	CreatePlan(ctx context.Context, plan *domain.PricingPlan) error
 	GetPlan(ctx context.Context, id string) (*domain.PricingPlan, error)
-	ListPlansForProduct(ctx context.Context, productID string) ([]*domain.PricingPlan, error)
+	ListPlans(ctx context.Context, productID *string) ([]*domain.PricingPlan, error)
 
 	// Complex Logic
 	CalculateFinalPrice(ctx context.Context, planID string, couponCode string) (float64, error)

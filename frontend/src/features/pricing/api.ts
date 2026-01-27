@@ -7,8 +7,14 @@ export const pricingApi = {
         return response.data;
     },
 
-    getPlans: async (productId: string) => {
-        const response = await api.get<PricingPlan[]>(`/pricing/plans?productId=${productId}`);
+    getPlans: async (productId?: string) => {
+        const query = productId ? `?productId=${productId}` : '';
+        const response = await api.get<PricingPlan[]>(`/pricing/plans${query}`);
+        return response.data;
+    },
+
+    getPlan: async (planId: string) => {
+        const response = await api.get<PricingPlan>(`/pricing/plans/${planId}`);
         return response.data;
     },
 

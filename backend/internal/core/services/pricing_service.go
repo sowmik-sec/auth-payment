@@ -69,12 +69,16 @@ func (s *PricingServiceImpl) GetPlan(ctx context.Context, id string) (*domain.Pr
 	return s.repo.GetPlanByID(ctx, oid)
 }
 
-func (s *PricingServiceImpl) ListPlansForProduct(ctx context.Context, productID string) ([]*domain.PricingPlan, error) {
-	oid, err := primitive.ObjectIDFromHex(productID)
-	if err != nil {
-		return nil, errors.New("invalid product ID")
+func (s *PricingServiceImpl) ListPlans(ctx context.Context, productID *string) ([]*domain.PricingPlan, error) {
+	var pOID *primitive.ObjectID
+	if productID != nil && *productID != "" {
+		oid, err := primitive.ObjectIDFromHex(*productID)
+		if err != nil {
+			return nil, errors.New("invalid product ID")
+		}
+		pOID = &oid
 	}
-	return s.repo.GetPlansByProductID(ctx, oid)
+	return s.repo.GetPlans(ctx, pOID)
 }
 
 func (s *PricingServiceImpl) CalculateFinalPrice(ctx context.Context, planID string, couponCode string) (float64, error) {

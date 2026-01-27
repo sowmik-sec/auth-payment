@@ -26,28 +26,21 @@ func main() {
 			repository.NewMongoUserRepository,
 			repository.NewMongoPricingRepository,
 			repository.NewMongoWalletRepository, // Added
-			// Payment Deps
-			sys_payment.NewStripeAdapter,
-			services.NewPaymentService,
-			services.NewWalletService, // Added
-
-			handler.NewPaymentHandler,
-			handler.NewWalletHandler, // Added
-
 			// Affiliate Deps
 			repository.NewMongoAffiliateRepository,
-			repository.NewMongoInvoiceRepository, // Added
+			repository.NewMongoInvoiceRepository,
+
 			// Payment Deps
 			sys_payment.NewStripeAdapter,
 			services.NewPaymentService,
 			services.NewWalletService,
 			services.NewAffiliateService,
-			services.NewInvoiceService, // Added
+			services.NewInvoiceService,
 
 			handler.NewPaymentHandler,
 			handler.NewWalletHandler,
 			handler.NewAffiliateHandler,
-			handler.NewInvoiceHandler, // Added
+			handler.NewInvoiceHandler,
 
 			services.NewTokenService,
 			services.NewAuthService,

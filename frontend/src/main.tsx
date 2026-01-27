@@ -11,6 +11,8 @@ import { PricingForm } from './features/pricing/components/PricingForm'
 import { CheckoutPage } from './features/payment/components/CheckoutPage'
 import { WalletDashboard } from './features/wallet/components/WalletDashboard'
 import { AffiliateDashboard } from './features/affiliate/components/AffiliateDashboard'
+import { LandingPage } from './features/home/components/LandingPage'
+import { PricingPage } from './features/pricing/components/PricingPage'
 
 const queryClient = new QueryClient()
 
@@ -24,17 +26,20 @@ const RootComponent = () => {
     <>
       <div className="p-2 flex gap-2 border-b items-center justify-between">
         <div className="flex gap-2">
-          <Link to="/" className="[&.active]:font-bold">
+          <Link to="/" className="[&.active]:font-bold p-2">
             Home
           </Link>
-          <Link to="/admin/pricing" className="[&.active]:font-bold">
+          <Link to="/pricing" className="[&.active]:font-bold p-2">
             Pricing
           </Link>
-          <Link to="/wallet" className="[&.active]:font-bold">
+          <Link to="/wallet" className="[&.active]:font-bold p-2">
             Wallet
           </Link>
-          <Link to="/affiliate" className="[&.active]:font-bold">
+          <Link to="/affiliate" className="[&.active]:font-bold p-2">
             Affiliates
+          </Link>
+          <Link to="/admin/pricing" className="[&.active]:font-bold p-2 text-indigo-600">
+            Admin
           </Link>
         </div>
         <div>
@@ -63,7 +68,7 @@ const rootRoute = createRootRoute({
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
-  component: () => <div className="p-4">Welcome to the Industry Standard Auth App!</div>,
+  component: LandingPage,
 })
 
 const loginRoute = createRoute({
@@ -96,15 +101,36 @@ const signupRoute = createRoute({
   component: SignupPage,
 })
 
-const pricingRoute = createRoute({
+const adminPricingRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/admin/pricing',
   component: PricingForm,
 })
 
-const routeTree = rootRoute.addChildren([indexRoute, loginRoute, signupRoute, pricingRoute, checkoutRoute, walletRoute, affiliateRoute])
+const pricingRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/pricing',
+  component: PricingPage,
+})
 
-const router = createRouter({ routeTree, context: { queryClient } })
+import { PaymentSuccessPage } from './features/payment/components/PaymentSuccessPage'
+
+// existing routes...
+
+const paymentSuccessRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/payment/success',
+  component: PaymentSuccessPage,
+})
+
+const routeTree = rootRoute.addChildren([indexRoute, loginRoute, signupRoute, adminPricingRoute, pricingRoute, checkoutRoute, walletRoute, affiliateRoute, paymentSuccessRoute])
+
+const router = createRouter({
+  routeTree,
+  context: { queryClient },
+  defaultErrorComponent: ({ error }) => <div className="p-4 text-red-500 font-bold">Error: {error.message}</div>,
+  defaultNotFoundComponent: () => <div className="p-4">404 - Not Found</div>
+})
 
 declare module '@tanstack/react-router' {
   interface Register {
