@@ -23,4 +23,7 @@ type PricingService interface {
 
 	// Complex Logic
 	CalculateFinalPrice(ctx context.Context, planID string, couponCode string) (float64, error)
+
+	UpdatePlan(ctx context.Context, id string, name string, description string) error
+	DeletePlan(ctx context.Context, id string) error
 }

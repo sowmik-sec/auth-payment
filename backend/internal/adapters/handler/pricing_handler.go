@@ -90,5 +90,48 @@ func (h *PricingHandler) RegisterRoutes(router *gin.Engine, middleware gin.Handl
 	admin.Use(middleware)
 	{
 		admin.POST("/plans", h.CreatePlan)
+		admin.PUT("/plans/:id", h.UpdatePlan)
+		admin.DELETE("/plans/:id", h.DeletePlan)
 	}
+}
+
+// UpdatePlan endpoint
+func (h *PricingHandler) UpdatePlan(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "plan ID is required"})
+		return
+	}
+
+	var req struct {
+		Name        string `json:"name" binding:"required"`
+		Description string `json:"description"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.service.UpdatePlan(c.Request.Context(), id, req.Name, req.Description); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "updated"})
+}
+
+// DeletePlan endpoint
+func (h *PricingHandler) DeletePlan(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "plan ID is required"})
+		return
+	}
+
+	if err := h.service.DeletePlan(c.Request.Context(), id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "deleted"})
 }

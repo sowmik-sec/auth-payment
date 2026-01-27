@@ -160,3 +160,48 @@ func (s *PricingServiceImpl) CalculateFinalPrice(ctx context.Context, planID str
 
 	return basePrice, nil
 }
+
+func (s *PricingServiceImpl) UpdatePlan(ctx context.Context, id string, name string, description string) error {
+	// 1. Get Plan
+	plan, err := s.GetPlan(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	// 2. Sync with Stripe
+	if plan.StripeProductID != "" {
+		err := s.gateway.UpdateProduct(ctx, plan.StripeProductID, name, description)
+		if err != nil {
+			// Log error but proceed?
+			// log.Println("Failed to sync update to Stripe:", err)
+		}
+	}
+
+	// 3. Update Local Plan
+	plan.Name = name
+	plan.Description = description
+	plan.UpdatedAt = time.Now()
+
+	return s.repo.UpdatePlan(ctx, plan)
+}
+
+func (s *PricingServiceImpl) DeletePlan(ctx context.Context, id string) error {
+	// 1. Get Plan
+	plan, err := s.GetPlan(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	// 2. Sync with Stripe (Archive)
+	if plan.StripeProductID != "" {
+		err := s.gateway.ArchiveProduct(ctx, plan.StripeProductID)
+		if err != nil {
+			// Log error but proceed?
+			// log.Println("Failed to sync delete (archive) to Stripe:", err)
+		}
+	}
+
+	// 3. Delete Local Plan
+	oid, _ := primitive.ObjectIDFromHex(id)
+	return s.repo.DeletePlan(ctx, oid)
+}

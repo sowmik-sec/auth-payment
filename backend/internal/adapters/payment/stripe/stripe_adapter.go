@@ -71,6 +71,31 @@ func (s *StripeAdapter) CreateProduct(ctx context.Context, name string, descript
 	return prod.ID, nil
 }
 
+func (s *StripeAdapter) UpdateProduct(ctx context.Context, productID string, name string, description string) error {
+	if s.AllowMock {
+		return nil
+	}
+
+	params := &stripe.ProductParams{
+		Name:        stripe.String(name),
+		Description: stripe.String(description),
+	}
+	_, err := product.Update(productID, params)
+	return err
+}
+
+func (s *StripeAdapter) ArchiveProduct(ctx context.Context, productID string) error {
+	if s.AllowMock {
+		return nil
+	}
+
+	params := &stripe.ProductParams{
+		Active: stripe.Bool(false),
+	}
+	_, err := product.Update(productID, params)
+	return err
+}
+
 func (s *StripeAdapter) CreatePrice(ctx context.Context, productID string, amount float64, currency string, interval string) (string, error) {
 	if s.AllowMock {
 		return "price_mock_123", nil
