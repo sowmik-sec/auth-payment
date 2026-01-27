@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from '@tanstack/react-router';
 import { CreditCard, Repeat, Split, Layers, Heart, CheckCircle2, Package } from 'lucide-react';
 import { PricingTypeCard } from './PricingTypeCard';
 import { OneTimeForm } from './forms/OneTimeForm';
@@ -15,6 +16,8 @@ import { Label } from '@/components/ui/label';
 import { useCreatePlan } from '../hooks';
 
 export const PricingForm = () => {
+    const navigate = useNavigate();
+
     // Basic Info
     const [name, setName] = useState('Premium Plan');
     const [description, setDescription] = useState('');
@@ -54,12 +57,15 @@ export const PricingForm = () => {
     const addFeature = () => setFeatures([...features, '']);
     const removeFeature = (index: number) => setFeatures(features.filter((_, i) => i !== index));
 
+    // ... existing handlers
+
     const handleSubmit = () => {
+        // ... existing payload construction
         const payload: any = {
             name,
             description,
             type: selectedType,
-            product_id: "650000000000000000000001", // Dummy ID
+            product_id: "650000000000000000000001", // Dummy ID set here
             values: features.filter(f => f.trim() !== ''),
             allow_coupons: allowCoupons,
         };
@@ -92,7 +98,15 @@ export const PricingForm = () => {
             case 'bundle': payload.bundle_config = bundleConfig; break;
         }
 
-        createPlanMutation.mutate(payload);
+        createPlanMutation.mutate(payload, {
+            onSuccess: () => {
+                // Navigate back to the plan list
+                navigate({ to: '/admin/plans' });
+            },
+            onError: (error) => {
+                alert(`Failed to create plan: ${error}`);
+            }
+        });
     };
 
     // Helper to render preview price with discount logic

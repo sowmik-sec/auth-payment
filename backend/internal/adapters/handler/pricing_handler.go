@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"auth-payment-backend/internal/core/domain"
@@ -29,6 +30,7 @@ func (h *PricingHandler) CreatePlan(c *gin.Context) {
 	// plan.CreatorID = ...
 
 	if err := h.service.CreatePlan(c.Request.Context(), &plan); err != nil {
+		fmt.Printf("Error creating plan: %v\n", err) // Added logging
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

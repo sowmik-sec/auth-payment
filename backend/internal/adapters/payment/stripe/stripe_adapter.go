@@ -2,8 +2,9 @@ package stripe
 
 import (
 	"context"
-	"os"
+	"fmt" // Added
 
+	"auth-payment-backend/internal/adapters/config"
 	"auth-payment-backend/internal/core/ports"
 
 	"github.com/stripe/stripe-go/v76"
@@ -18,12 +19,15 @@ type StripeAdapter struct {
 	AllowMock bool
 }
 
-func NewStripeAdapter() ports.PaymentGateway {
-	key := os.Getenv("STRIPE_SECRET_KEY")
+func NewStripeAdapter(cfg *config.Config) ports.PaymentGateway {
+	key := cfg.StripeSecretKey
 	if key == "" {
-		// Log warning: "Stripe keys missing, interactions will fail"
+		fmt.Println("⚠️ StripeAdapter: Key is missing! Using Mock Mode.")
 		stripe.Key = "sk_test_mock_key"
 		return &StripeAdapter{AllowMock: true}
+	}
+	if len(key) > 8 {
+		fmt.Printf("✅ StripeAdapter: Loaded Key starting with %s...\n", key[:8])
 	}
 	stripe.Key = key
 	return &StripeAdapter{AllowMock: false}
