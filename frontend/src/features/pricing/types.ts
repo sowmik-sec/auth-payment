@@ -88,6 +88,10 @@ export interface PricingPlan {
     early_bird?: { discount_amount: number, deadline: string };
     access_duration?: { duration_days: number };
 
+    // Stripe Sync
+    stripe_product_id?: string;
+    stripe_price_id?: string;
+
     created_at: string;
 }
 

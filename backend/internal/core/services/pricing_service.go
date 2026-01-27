@@ -161,23 +161,95 @@ func (s *PricingServiceImpl) CalculateFinalPrice(ctx context.Context, planID str
 	return basePrice, nil
 }
 
-func (s *PricingServiceImpl) UpdatePlan(ctx context.Context, id string, name string, description string) error {
+func (s *PricingServiceImpl) UpdatePlan(ctx context.Context, id string, name string, description string, price *float64, interval *string) error {
 	// 1. Get Plan
 	plan, err := s.GetPlan(ctx, id)
 	if err != nil {
 		return err
 	}
 
-	// 2. Sync with Stripe
+	// 2. Sync Basic Info with Stripe
 	if plan.StripeProductID != "" {
 		err := s.gateway.UpdateProduct(ctx, plan.StripeProductID, name, description)
 		if err != nil {
 			// Log error but proceed?
 			// log.Println("Failed to sync update to Stripe:", err)
 		}
+
+		// 3. Handle Price UPDATE (Archive Old + Create New)
+		// Check if price or interval is provided and different
+		isPriceChanged := false
+		newPrice := 0.0
+		newInterval := ""
+
+		// Determine current price/interval
+		currentPrice := 0.0
+		currentInterval := ""
+
+		switch plan.Type {
+		case domain.PricingTypeOneTime:
+			currentPrice = plan.OneTimeConfig.Price
+			newInterval = "" // One time
+		case domain.PricingTypeSubscription:
+			currentPrice = plan.SubscriptionConfig.Price
+			currentInterval = string(plan.SubscriptionConfig.Interval)
+		case domain.PricingTypeBundle:
+			currentPrice = plan.BundleConfig.Price
+		}
+
+		if price != nil && *price != currentPrice {
+			isPriceChanged = true
+			newPrice = *price
+		} else {
+			newPrice = currentPrice
+		}
+
+		if interval != nil && *interval != currentInterval {
+			isPriceChanged = true
+			newInterval = *interval
+		} else {
+			newInterval = currentInterval
+		}
+
+		// If changed, sync with Stripe
+		if isPriceChanged && plan.StripePriceID != "" {
+			// A. Archive Old Price
+			_ = s.gateway.ArchivePrice(ctx, plan.StripePriceID)
+
+			// B. Create New Price
+			// We need currency. Assuming USD or existing config currency.
+			currency := "USD"
+			if plan.OneTimeConfig != nil {
+				currency = plan.OneTimeConfig.Currency
+			}
+			if plan.SubscriptionConfig != nil {
+				currency = plan.SubscriptionConfig.Currency
+			}
+
+			newStripePriceID, err := s.gateway.CreatePrice(ctx, plan.StripeProductID, newPrice, currency, newInterval)
+			if err == nil {
+				plan.StripePriceID = newStripePriceID
+			}
+		}
+
+		// Update Local Configs
+		if price != nil {
+			if plan.OneTimeConfig != nil {
+				plan.OneTimeConfig.Price = *price
+			}
+			if plan.SubscriptionConfig != nil {
+				plan.SubscriptionConfig.Price = *price
+			}
+			if plan.BundleConfig != nil {
+				plan.BundleConfig.Price = *price
+			}
+		}
+		if interval != nil && plan.SubscriptionConfig != nil {
+			plan.SubscriptionConfig.Interval = domain.RecurringInterval(*interval)
+		}
 	}
 
-	// 3. Update Local Plan
+	// 4. Update Local Plan
 	plan.Name = name
 	plan.Description = description
 	plan.UpdatedAt = time.Now()

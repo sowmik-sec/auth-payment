@@ -96,6 +96,18 @@ func (s *StripeAdapter) ArchiveProduct(ctx context.Context, productID string) er
 	return err
 }
 
+func (s *StripeAdapter) ArchivePrice(ctx context.Context, priceID string) error {
+	if s.AllowMock {
+		return nil
+	}
+
+	params := &stripe.PriceParams{
+		Active: stripe.Bool(false),
+	}
+	_, err := price.Update(priceID, params)
+	return err
+}
+
 func (s *StripeAdapter) CreatePrice(ctx context.Context, productID string, amount float64, currency string, interval string) (string, error) {
 	if s.AllowMock {
 		return "price_mock_123", nil

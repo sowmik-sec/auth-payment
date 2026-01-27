@@ -14,6 +14,7 @@ type PaymentGateway interface {
 	CreatePrice(ctx context.Context, productID string, amount float64, currency string, interval string) (string, error)
 	UpdateProduct(ctx context.Context, productID string, name string, description string) error
 	ArchiveProduct(ctx context.Context, productID string) error
+	ArchivePrice(ctx context.Context, priceID string) error
 
 	// subscriptions
 	CreateCustomer(ctx context.Context, email string, name string) (string, error)

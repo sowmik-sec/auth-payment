@@ -104,15 +104,17 @@ func (h *PricingHandler) UpdatePlan(c *gin.Context) {
 	}
 
 	var req struct {
-		Name        string `json:"name" binding:"required"`
-		Description string `json:"description"`
+		Name        string   `json:"name" binding:"required"`
+		Description string   `json:"description"`
+		Price       *float64 `json:"price"`
+		Interval    *string  `json:"interval"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	if err := h.service.UpdatePlan(c.Request.Context(), id, req.Name, req.Description); err != nil {
+	if err := h.service.UpdatePlan(c.Request.Context(), id, req.Name, req.Description, req.Price, req.Interval); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

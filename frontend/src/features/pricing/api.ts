@@ -20,5 +20,15 @@ export const pricingApi = {
 
     calculatePrice: async (_planId: string, _couponCode?: string) => {
         // Logic for consumer side later
+    },
+
+    updatePlan: async (id: string, data: { name: string; description: string; price?: number; interval?: string }) => {
+        const response = await api.put<{ status: string }>(`/admin/plans/${id}`, data);
+        return response.data;
+    },
+
+    deletePlan: async (id: string) => {
+        const response = await api.delete<{ status: string }>(`/admin/plans/${id}`);
+        return response.data;
     }
 };
