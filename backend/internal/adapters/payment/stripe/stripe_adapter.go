@@ -65,9 +65,12 @@ func (s *StripeAdapter) CreateProduct(ctx context.Context, name string, descript
 	}
 
 	params := &stripe.ProductParams{
-		Name:        stripe.String(name),
-		Description: stripe.String(description),
+		Name: stripe.String(name),
 	}
+	if description != "" {
+		params.Description = stripe.String(description)
+	}
+
 	prod, err := product.New(params)
 	if err != nil {
 		return "", err
@@ -81,9 +84,12 @@ func (s *StripeAdapter) UpdateProduct(ctx context.Context, productID string, nam
 	}
 
 	params := &stripe.ProductParams{
-		Name:        stripe.String(name),
-		Description: stripe.String(description),
+		Name: stripe.String(name),
 	}
+	if description != "" {
+		params.Description = stripe.String(description)
+	}
+
 	_, err := product.Update(productID, params)
 	return err
 }

@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"auth-payment-backend/internal/core/domain"
@@ -103,12 +104,13 @@ func (s *PricingServiceImpl) CreatePlan(ctx context.Context, plan *domain.Pricin
 			if err == nil {
 				plan.StripePriceID = priceID
 			} else {
-				// Log error but proceed? Or fail? For now, we proceed but maybe log.
-				// In production, we should roll back or fail.
+				fmt.Printf("❌ Failed to create Stripe Price: %v\n", err)
 			}
 		} else {
-			// Log error
+			fmt.Printf("❌ Failed to create Stripe Product: %v\n", err)
 		}
+	} else {
+		fmt.Println("ℹ️ Skipping Stripe Sync: Amount is 0 or currency missing.")
 	}
 
 	plan.CreatedAt = time.Now()
