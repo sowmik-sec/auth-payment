@@ -1,6 +1,7 @@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { SplitConfig, RecurringInterval } from '../../types';
+import { SUPPORTED_CURRENCIES } from '../../types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../components/ui/select';
 
 interface Props {
@@ -17,10 +18,31 @@ export const SplitPaymentForm = ({ config, onChange }: Props) => {
     return (
         <div className="space-y-4">
             <div className="space-y-2">
+                <Label>Currency</Label>
+                <Select
+                    value={config.currency || 'USD'}
+                    onValueChange={(val) => onChange({ ...config, currency: val })}
+                >
+                    <SelectTrigger>
+                        <SelectValue placeholder="Select currency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {SUPPORTED_CURRENCIES.map(curr => (
+                            <SelectItem key={curr.code} value={curr.code}>
+                                {curr.code} - {curr.name} ({curr.symbol})
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
+
+            <div className="space-y-2">
                 <Label>Total Price</Label>
                 <div className="grid grid-cols-2 gap-4">
                     <div className="relative">
-                        <span className="absolute left-3 top-2.5 text-slate-500">$</span>
+                        <span className="absolute left-3 top-2.5 text-slate-500">
+                            {SUPPORTED_CURRENCIES.find(c => c.code === config.currency)?.symbol || '$'}
+                        </span>
                         <Input
                             type="number"
                             min="0"
@@ -31,7 +53,9 @@ export const SplitPaymentForm = ({ config, onChange }: Props) => {
                         />
                     </div>
                     <div className="relative">
-                        <span className="absolute left-3 top-2.5 text-slate-500">$</span>
+                        <span className="absolute left-3 top-2.5 text-slate-500">
+                            {SUPPORTED_CURRENCIES.find(c => c.code === config.currency)?.symbol || '$'}
+                        </span>
                         <Input
                             type="number"
                             min="0"
@@ -75,7 +99,9 @@ export const SplitPaymentForm = ({ config, onChange }: Props) => {
             <div className="space-y-2">
                 <Label>Upfront Payment (Optional)</Label>
                 <div className="relative">
-                    <span className="absolute left-3 top-2.5 text-slate-500">$</span>
+                    <span className="absolute left-3 top-2.5 text-slate-500">
+                        {SUPPORTED_CURRENCIES.find(c => c.code === config.currency)?.symbol || '$'}
+                    </span>
                     <Input
                         type="number"
                         min="0"
@@ -88,7 +114,7 @@ export const SplitPaymentForm = ({ config, onChange }: Props) => {
 
             {installmentAmount > 0 && (
                 <div className="bg-slate-50 p-3 rounded-md text-sm text-slate-600">
-                    Students will pay <strong>${installmentAmount.toFixed(2)}</strong> / {config.interval || 'month'} for {config.installment_count} installments.
+                    Students will pay <strong>{SUPPORTED_CURRENCIES.find(c => c.code === config.currency)?.symbol || '$'}{installmentAmount.toFixed(2)}</strong> / {config.interval || 'month'} for {config.installment_count} installments.
                 </div>
             )}
         </div>

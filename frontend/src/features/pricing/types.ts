@@ -2,6 +2,13 @@ export type PricingType = 'one_time' | 'subscription' | 'split' | 'tiered' | 'do
 export type RecurringInterval = 'month' | 'year' | 'week' | 'day';
 
 
+export const SUPPORTED_CURRENCIES = [
+    { code: 'USD', symbol: '$', name: 'US Dollar' },
+    { code: 'EUR', symbol: '€', name: 'Euro' },
+    { code: 'GBP', symbol: '£', name: 'British Pound' },
+    { code: 'BDT', symbol: '৳', name: 'Bangladeshi Taka' },
+] as const;
+
 export interface OneTimeConfig {
     price: number;
     original_price?: number;
@@ -15,6 +22,7 @@ export interface SubscriptionConfig {
     currency: string;
     interval: RecurringInterval;
     trial_days?: number;
+    trial_requires_card?: boolean; // true = card required, false = cardless
 }
 
 export interface SplitConfig {

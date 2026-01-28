@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { toast } from 'sonner';
+import { Switch } from '@/components/ui/switch';
 import { useNavigate } from '@tanstack/react-router';
 import { CreditCard, Repeat, Split, Layers, Heart, CheckCircle2, Package } from 'lucide-react';
 import { PricingTypeCard } from './PricingTypeCard';
@@ -43,7 +45,10 @@ export const PricingForm = () => {
     const [earlyBirdEnabled, setEarlyBirdEnabled] = useState(false);
     const [earlyBirdDiscount, setEarlyBirdDiscount] = useState<number>(0);
     const [earlyBirdDeadline, setEarlyBirdDeadline] = useState<string>('');
+
     const [upsellEnabled, setUpsellEnabled] = useState(false);
+    const [isFreeAccess, setIsFreeAccess] = useState(false);
+    const [isPrivate, setIsPrivate] = useState(false);
 
     // Config States (Partial to allow empty init)
     const [oneTimeConfig, setOneTimeConfig] = useState<Partial<OneTimeConfig>>({ price: 50, currency: 'USD' });
@@ -69,11 +74,11 @@ export const PricingForm = () => {
 
     const handleSubmit = () => {
         if (!selectedProduct) {
-            alert('Please select a product/course');
+            toast.error('Please select a product/course');
             return;
         }
         if (!name.trim()) {
-            alert('Please enter a price name');
+            toast.error('Please enter a price name');
             return;
         }
         // ... existing payload construction
@@ -116,14 +121,31 @@ export const PricingForm = () => {
 
         createPlanMutation.mutate(payload, {
             onSuccess: () => {
-                // Navigate back to the plan list
+                toast.success('Price created successfully!');
                 navigate({ to: '/admin/plans' });
             },
-            onError: (error) => {
-                alert(`Failed to create plan: ${error}`);
+            onError: (err) => {
+                toast.error(`Failed to create price: ${err.message}`);
             }
         });
     };
+
+    const discountPercentage = useMemo(() => {
+        let original = 0, current = 0;
+
+        if (selectedType === 'one_time' && oneTimeConfig.original_price && oneTimeConfig.price) {
+            original = oneTimeConfig.original_price;
+            current = oneTimeConfig.price;
+        } else if (selectedType === 'subscription' && subConfig.original_price && subConfig.price) {
+            original = subConfig.original_price;
+            current = subConfig.price;
+        }
+
+        if (original > current && current >= 0 && original > 0) {
+            return Math.round(((original - current) / original) * 100);
+        }
+        return null;
+    }, [selectedType, oneTimeConfig, subConfig]);
 
     // Helper to render preview price with discount logic
     const renderPreviewPrice = () => {
@@ -430,12 +452,10 @@ export const PricingForm = () => {
                             <div className="p-4 space-y-3">
                                 <div className="flex items-center justify-between">
                                     <span className="text-sm font-medium text-slate-700">Upsells (Order Bumps)</span>
-                                    <div
-                                        className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors ${upsellEnabled ? 'bg-indigo-600' : 'bg-slate-300'}`}
-                                        onClick={() => setUpsellEnabled(!upsellEnabled)}
-                                    >
-                                        <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${upsellEnabled ? 'translate-x-5' : ''}`}></div>
-                                    </div>
+                                    <Switch
+                                        checked={upsellEnabled}
+                                        onCheckedChange={setUpsellEnabled}
+                                    />
                                 </div>
 
                                 {upsellEnabled && (
@@ -443,6 +463,36 @@ export const PricingForm = () => {
                                         <UpsellForm config={upsellConfig} onChange={setUpsellConfig} />
                                     </div>
                                 )}
+                            </div>
+
+                            {/* Free Access Toggle */}
+                            <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-slate-50 transition-colors bg-white">
+                                <div>
+                                    <h3 className="font-medium text-slate-800">Free Access</h3>
+                                    <p className="text-xs text-slate-500">Make this price free ($0)</p>
+                                </div>
+                                <Switch
+                                    checked={isFreeAccess}
+                                    onCheckedChange={(val) => {
+                                        setIsFreeAccess(val);
+                                        if (val) {
+                                            setOneTimeConfig({ ...oneTimeConfig, price: 0 });
+                                            setSubConfig({ ...subConfig, price: 0 });
+                                        }
+                                    }}
+                                />
+                            </div>
+
+                            {/* Private Pricing Toggle */}
+                            <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-slate-50 transition-colors bg-white">
+                                <div>
+                                    <h3 className="font-medium text-slate-900">Private Price</h3>
+                                    <p className="text-xs text-slate-500">Only accessible via direct link</p>
+                                </div>
+                                <Switch
+                                    checked={isPrivate}
+                                    onCheckedChange={setIsPrivate}
+                                />
                             </div>
 
                         </div>
@@ -486,7 +536,14 @@ export const PricingForm = () => {
                                 {selectedType === 'bundle' && <Package className="w-5 h-5 text-indigo-600" />}
                                 <div>
                                     <p className="font-semibold text-indigo-900 leading-tight">{name || 'Price Name'}</p>
-                                    <p className="text-xs text-indigo-700">{selectedType.replace('_', ' ')}</p>
+                                    <div className="flex items-center gap-2">
+                                        <p className="text-xs text-indigo-700">{selectedType.replace('_', ' ')}</p>
+                                        {(discountPercentage || 0) > 0 && (
+                                            <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
+                                                {discountPercentage}% OFF
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>
