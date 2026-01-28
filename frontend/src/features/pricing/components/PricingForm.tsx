@@ -89,6 +89,8 @@ export const PricingForm = () => {
             product_id: selectedProduct,
             values: features.filter(f => f.trim() !== ''),
             allow_coupons: allowCoupons,
+            is_free: isFreeAccess,
+            is_private: isPrivate,
         };
 
         if (accessType === 'limited') {
