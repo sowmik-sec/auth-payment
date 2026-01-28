@@ -26,8 +26,14 @@ func (h *PricingHandler) CreatePlan(c *gin.Context) {
 		return
 	}
 
-	// TODO: Get CreatorID from context (Auth Middleware)
-	// plan.CreatorID = ...
+	// Get CreatorID from context (Auth Middleware)
+	user, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized: missing user context"})
+		return
+	}
+	currentUser := user.(*domain.User)
+	plan.CreatorID = currentUser.ID
 
 	if err := h.service.CreatePlan(c.Request.Context(), &plan); err != nil {
 		fmt.Printf("Error creating plan: %v\n", err) // Added logging

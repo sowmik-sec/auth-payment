@@ -6,7 +6,7 @@ import (
 
 type PaymentGateway interface {
 	// core payments
-	CreatePaymentIntent(ctx context.Context, amount float64, currency string, metadata map[string]string) (string, error)
+	CreatePaymentIntent(ctx context.Context, amount float64, currency string, metadata map[string]string, destinationAccountID string, applicationFeeAmount int64) (string, error)
 	ConfirmPayment(ctx context.Context, paymentID string) error
 
 	// products & prices (sync)
@@ -18,6 +18,6 @@ type PaymentGateway interface {
 
 	// subscriptions
 	CreateCustomer(ctx context.Context, email string, name string) (string, error)
-	CreateSubscription(ctx context.Context, customerID string, priceID string, metadata map[string]string) (string, error)
+	CreateSubscription(ctx context.Context, customerID string, priceID string, metadata map[string]string, destinationAccountID string, applicationFeePercent float64) (string, error)
 	CancelSubscription(ctx context.Context, subID string) error
 }

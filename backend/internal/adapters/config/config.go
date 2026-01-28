@@ -5,14 +5,15 @@ import (
 )
 
 type Config struct {
-	AppEnv                string `mapstructure:"APP_ENV"`
-	ServerPort            string `mapstructure:"SERVER_PORT"`
-	DBUri                 string `mapstructure:"DB_URI"`
-	DBName                string `mapstructure:"DB_NAME"`
-	JWTSecret             string `mapstructure:"JWT_SECRET"`
-	FrontendURL           string `mapstructure:"FRONTEND_URL"`
-	StripeSecretKey       string `mapstructure:"STRIPE_SECRET_KEY"`
-	StripeConnectClientID string `mapstructure:"STRIPE_CONNECT_CLIENT_ID"`
+	AppEnv                string  `mapstructure:"APP_ENV"`
+	ServerPort            string  `mapstructure:"SERVER_PORT"`
+	DBUri                 string  `mapstructure:"DB_URI"`
+	DBName                string  `mapstructure:"DB_NAME"`
+	JWTSecret             string  `mapstructure:"JWT_SECRET"`
+	FrontendURL           string  `mapstructure:"FRONTEND_URL"`
+	StripeSecretKey       string  `mapstructure:"STRIPE_SECRET_KEY"`
+	StripeConnectClientID string  `mapstructure:"STRIPE_CONNECT_CLIENT_ID"`
+	PlatformFeePercent    float64 `mapstructure:"PLATFORM_FEE_PERCENT"`
 }
 
 func LoadConfig() (*Config, error) {

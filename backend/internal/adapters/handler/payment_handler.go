@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"fmt"
+	"log"
 	"net/http"
 
 	"auth-payment-backend/internal/core/services"
@@ -40,7 +42,8 @@ func (h *PaymentHandler) InitiateCheckout(c *gin.Context) {
 	// Pass dynamic args to service
 	clientSecret, err := h.service.InitiateCheckout(c.Request.Context(), userID, req.PlanID, req.AffiliateCode, req.CouponCode, req.Amount, req.Quantity)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("Checkout Error: %v", err) // DEBUG LOG
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to initiate checkout: %v", err)})
 		return
 	}
 

@@ -3,7 +3,9 @@ package services
 import (
 	"context"
 	"errors"
+	"log"
 
+	"auth-payment-backend/internal/adapters/config" // Added
 	"auth-payment-backend/internal/core/domain"
 	"auth-payment-backend/internal/core/ports"
 
@@ -16,15 +18,17 @@ type PaymentServiceImpl struct {
 	affiliateSvc ports.AffiliateService
 	couponSvc    ports.CouponService
 	userRepo     ports.UserRepository
+	config       *config.Config // Added
 }
 
-func NewPaymentService(gateway ports.PaymentGateway, pricingSvc ports.PricingService, affiliateSvc ports.AffiliateService, couponSvc ports.CouponService, userRepo ports.UserRepository) *PaymentServiceImpl {
+func NewPaymentService(gateway ports.PaymentGateway, pricingSvc ports.PricingService, affiliateSvc ports.AffiliateService, couponSvc ports.CouponService, userRepo ports.UserRepository, cfg *config.Config) *PaymentServiceImpl {
 	return &PaymentServiceImpl{
 		gateway:      gateway,
 		pricingSvc:   pricingSvc,
 		affiliateSvc: affiliateSvc,
 		couponSvc:    couponSvc,
 		userRepo:     userRepo,
+		config:       cfg,
 	}
 }
 
@@ -34,6 +38,39 @@ func (s *PaymentServiceImpl) InitiateCheckout(ctx context.Context, userID string
 	plan, err := s.pricingSvc.GetPlan(ctx, planID)
 	if err != nil {
 		return "", err
+	}
+
+	// [New] Determine Destination (Creator) and Application Fee
+	var destinationAccountID string
+	var applicationFeeAmount int64
+	var applicationFeePercent float64
+
+	// Lookup Creator
+	if plan.CreatorID.IsZero() {
+		log.Printf("Warning: Plan %s has no CreatorID. Proceeding as platform-only sale.", planID)
+	} else {
+		log.Printf("Looking up creator for PlanID: %s, CreatorID: %s", planID, plan.CreatorID.Hex())
+		creator, err := s.userRepo.GetByID(ctx, plan.CreatorID.Hex())
+		if err != nil {
+			// Instead of failing, we log and proceed as platform sale
+			log.Printf("Warning: Failed to lookup creator (ID: %s): %v. Proceeding as platform-only sale.", plan.CreatorID.Hex(), err)
+		} else {
+			log.Printf("Found Creator: %s, ConnectID: %s, Status: %s", creator.FullName, creator.StripeConnectID, creator.StripeConnectStatus)
+
+			// Check if creator is connected and active
+			if creator.StripeConnectID != "" && creator.StripeConnectStatus == "active" {
+				destinationAccountID = creator.StripeConnectID
+
+				// Calculate Fee
+				feePercent := s.config.PlatformFeePercent
+				if feePercent < 0 {
+					feePercent = 0
+				}
+
+				// For subscription, we simply pass the percent
+				applicationFeePercent = feePercent
+			}
+		}
 	}
 
 	// 2. Handle Subscription Logic
@@ -53,14 +90,11 @@ func (s *PaymentServiceImpl) InitiateCheckout(ctx context.Context, userID string
 			}
 			user.StripeCustomerID = cusID
 			if err := s.userRepo.Update(ctx, user); err != nil {
-				// Continue strictly speaking, but risky if update fails.
-				// Ideally we should fail, but let's proceed for MVP robustness on Stripe side.
-				// log.Println("Failed to update user/stripe_id")
+				// Continue strictly speaking
 			}
 		}
 
 		// C. Create Subscription
-		// Prepare metadata
 		metadata := map[string]string{
 			"plan_id": planID,
 			"user_id": userID,
@@ -72,27 +106,12 @@ func (s *PaymentServiceImpl) InitiateCheckout(ctx context.Context, userID string
 			metadata["coupon_code"] = couponCode
 		}
 
-		subID, err := s.gateway.CreateSubscription(ctx, user.StripeCustomerID, plan.StripePriceID, metadata)
+		// Pass Connect args
+		subID, err := s.gateway.CreateSubscription(ctx, user.StripeCustomerID, plan.StripePriceID, metadata, destinationAccountID, applicationFeePercent)
 		if err != nil {
 			return "", err
 		}
 
-		// For subscriptions, we return the Subscription ID or the Client Secret of the first invoice.
-		// Since our frontend expects a client_secret for Elements, we need to fetch it.
-		// The simplest way via Stripe API creation is expanding `latest_invoice.payment_intent`.
-		// Our Adapter currently returns subID. We might need to refactor Adapter to return clientSecret or fetch it.
-		// Assuming Adapter returns just ID for now, let's just return it.
-		// Frontend will need to handle "sub_..." differently or we fetch the client secret here.
-		// FOR MVP: Let's assume the frontend can handle it or we stick to PI for now?
-		// Actually, standard Stripe Elements integration uses Client Secret from the Subscription's first invoice.
-
-		// Let's modify this to return a special prefix or handle it.
-		// But wait, the user asked for logic.
-		// Since I can't easily change Adapter return type right now without breaking existing code heavily,
-		// I will rely on the fact that for many simple setups, the subID is enough to retrieve client secret on frontend,
-		// OR I update the Adapter to return the client secret (which is better).
-		// Let's UPDATE the Adapter in a following step.
-		// For now, return subID and let frontend handle or we fix Adapter next.
 		return subID, nil
 	}
 
@@ -163,6 +182,13 @@ func (s *PaymentServiceImpl) InitiateCheckout(ctx context.Context, userID string
 		}
 	}
 
+	// NEW: Calculate Application Fee Amount for One-Time Payment
+	if destinationAccountID != "" {
+		// Calculate fee on the FINAL amount (after discount)
+		feePercent := s.config.PlatformFeePercent
+		applicationFeeAmount = int64(amount * (feePercent / 100) * 100) // cents
+	}
+
 	// 5. Create PaymentIntent
 	metadata := map[string]string{
 		"plan_id": planID,
@@ -175,7 +201,7 @@ func (s *PaymentServiceImpl) InitiateCheckout(ctx context.Context, userID string
 		metadata["coupon_code"] = couponCode
 	}
 
-	return s.gateway.CreatePaymentIntent(ctx, amount, currency, metadata)
+	return s.gateway.CreatePaymentIntent(ctx, amount, currency, metadata, destinationAccountID, applicationFeeAmount)
 }
 
 // ProcessPaymentSuccess handles the post-payment logic (Webhooks)

@@ -33,7 +33,7 @@ func NewStripeAdapter(cfg *config.Config) ports.PaymentGateway {
 	return &StripeAdapter{AllowMock: false}
 }
 
-func (s *StripeAdapter) CreatePaymentIntent(ctx context.Context, amount float64, currency string, metadata map[string]string) (string, error) {
+func (s *StripeAdapter) CreatePaymentIntent(ctx context.Context, amount float64, currency string, metadata map[string]string, destinationAccountID string, applicationFeeAmount int64) (string, error) {
 	if s.AllowMock {
 		return "pi_mock_1234567890", nil
 	}
@@ -44,6 +44,16 @@ func (s *StripeAdapter) CreatePaymentIntent(ctx context.Context, amount float64,
 		AutomaticPaymentMethods: &stripe.PaymentIntentAutomaticPaymentMethodsParams{
 			Enabled: stripe.Bool(true),
 		},
+	}
+
+	// Handle Connect Destination Charge
+	if destinationAccountID != "" {
+		params.TransferData = &stripe.PaymentIntentTransferDataParams{
+			Destination: stripe.String(destinationAccountID),
+		}
+		if applicationFeeAmount > 0 {
+			params.ApplicationFeeAmount = stripe.Int64(applicationFeeAmount)
+		}
 	}
 
 	// Convert and attach metadata
@@ -57,6 +67,54 @@ func (s *StripeAdapter) CreatePaymentIntent(ctx context.Context, amount float64,
 	}
 
 	return pi.ClientSecret, nil
+}
+
+// ... CreateProduct, UpdateProduct, etc ... (omitted for brevity in replacement, but need to be careful not to overwrite unless using chunks)
+
+// Wait, I should use multireplace if the file is large or just be careful with ReplaceFileContent.
+// The file is small enough (200 lines) so I can target specific method blocks.
+
+func (s *StripeAdapter) CreateSubscription(ctx context.Context, customerID string, priceID string, metadata map[string]string, destinationAccountID string, applicationFeePercent float64) (string, error) {
+	if s.AllowMock {
+		return "sub_mock_123", nil
+	}
+
+	params := &stripe.SubscriptionParams{
+		Customer: stripe.String(customerID),
+		Items: []*stripe.SubscriptionItemsParams{
+			{
+				Price: stripe.String(priceID),
+			},
+		},
+		PaymentBehavior: stripe.String("default_incomplete"),
+	}
+	params.AddExpand("latest_invoice.payment_intent")
+
+	// Handle Connect Destination Charge
+	if destinationAccountID != "" {
+		params.TransferData = &stripe.SubscriptionTransferDataParams{
+			Destination: stripe.String(destinationAccountID),
+		}
+		if applicationFeePercent > 0 {
+			params.ApplicationFeePercent = stripe.Float64(applicationFeePercent)
+		}
+	}
+
+	// Attach Metadata
+	for k, v := range metadata {
+		params.AddMetadata(k, v)
+	}
+
+	sub, err := subscription.New(params)
+	if err != nil {
+		return "", err
+	}
+
+	if sub.LatestInvoice.PaymentIntent == nil {
+		return "", nil // No payment needed or error?
+	}
+
+	return sub.LatestInvoice.PaymentIntent.ClientSecret, nil
 }
 
 func (s *StripeAdapter) CreateProduct(ctx context.Context, name string, description string) (string, error) {
@@ -156,39 +214,6 @@ func (s *StripeAdapter) CreateCustomer(ctx context.Context, email string, name s
 		return "", err
 	}
 	return c.ID, nil
-}
-
-func (s *StripeAdapter) CreateSubscription(ctx context.Context, customerID string, priceID string, metadata map[string]string) (string, error) {
-	if s.AllowMock {
-		return "sub_mock_123", nil
-	}
-
-	params := &stripe.SubscriptionParams{
-		Customer: stripe.String(customerID),
-		Items: []*stripe.SubscriptionItemsParams{
-			{
-				Price: stripe.String(priceID),
-			},
-		},
-		PaymentBehavior: stripe.String("default_incomplete"),
-	}
-	params.AddExpand("latest_invoice.payment_intent")
-
-	// Attach Metadata
-	for k, v := range metadata {
-		params.AddMetadata(k, v)
-	}
-
-	sub, err := subscription.New(params)
-	if err != nil {
-		return "", err
-	}
-
-	if sub.LatestInvoice.PaymentIntent == nil {
-		return "", nil // No payment needed or error?
-	}
-
-	return sub.LatestInvoice.PaymentIntent.ClientSecret, nil
 }
 
 func (s *StripeAdapter) ConfirmPayment(ctx context.Context, paymentID string) error {
