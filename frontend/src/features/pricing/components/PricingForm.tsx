@@ -13,13 +13,21 @@ import type { PricingType, OneTimeConfig, SubscriptionConfig, SplitConfig, Tiere
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useCreatePlan } from '../hooks';
+
+const MOCK_PRODUCTS = [
+    { id: '650000000000000000000001', name: 'Web Development Masterclass', type: 'course' },
+    { id: '650000000000000000000002', name: 'React Pro Course', type: 'course' },
+    { id: '650000000000000000000003', name: 'Premium Membership', type: 'membership' },
+];
 
 export const PricingForm = () => {
     const navigate = useNavigate();
 
     // Basic Info
-    const [name, setName] = useState('Premium Plan');
+    const [selectedProduct, setSelectedProduct] = useState<string>('');
+    const [name, setName] = useState('Premium Price');
     const [description, setDescription] = useState('');
     const [selectedType, setSelectedType] = useState<PricingType>('one_time');
 
@@ -60,12 +68,20 @@ export const PricingForm = () => {
     // ... existing handlers
 
     const handleSubmit = () => {
+        if (!selectedProduct) {
+            alert('Please select a product/course');
+            return;
+        }
+        if (!name.trim()) {
+            alert('Please enter a price name');
+            return;
+        }
         // ... existing payload construction
         const payload: any = {
             name,
             description,
             type: selectedType,
-            product_id: "650000000000000000000001", // Dummy ID set here
+            product_id: selectedProduct,
             values: features.filter(f => f.trim() !== ''),
             allow_coupons: allowCoupons,
         };
@@ -171,14 +187,14 @@ export const PricingForm = () => {
                 <h2 className="text-lg font-semibold mb-4">Pricing type</h2>
                 <div className="space-y-3">
                     <PricingTypeCard
-                        title="One-time Plan"
+                        title="One-time Payment"
                         description="Simple one-time payment for lifetime access"
                         icon={CreditCard}
                         isSelected={selectedType === 'one_time'}
                         onClick={() => setSelectedType('one_time')}
                     />
                     <PricingTypeCard
-                        title="Split Payment Plan"
+                        title="Split Payment"
                         description="Payment in multiple installments"
                         icon={Split}
                         isSelected={selectedType === 'split'}
@@ -192,7 +208,7 @@ export const PricingForm = () => {
                         onClick={() => setSelectedType('subscription')}
                     />
                     <PricingTypeCard
-                        title="Tiered Plan"
+                        title="Tiered Pricing"
                         description="Different prices for different quantities"
                         icon={Layers}
                         isSelected={selectedType === 'tiered'}
@@ -219,8 +235,24 @@ export const PricingForm = () => {
             <div className="lg:col-span-5 space-y-6">
                 <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-6">
                     <div className="space-y-4">
+
                         <div className="space-y-2">
-                            <Label>Plan Name</Label>
+                            <Label>Product/Course <span className="text-red-500">*</span></Label>
+                            <Select value={selectedProduct} onValueChange={setSelectedProduct}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a product or course" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {MOCK_PRODUCTS.map(product => (
+                                        <SelectItem key={product.id} value={product.id}>
+                                            {product.name} ({product.type})
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Price Name</Label>
                             <Input value={name} onChange={(e) => setName(e.target.value)} />
                         </div>
                         <div className="space-y-2">
@@ -230,7 +262,7 @@ export const PricingForm = () => {
 
                         {/* Features Editor */}
                         <div className="space-y-2">
-                            <Label>Plan Benefits (Features)</Label>
+                            <Label>What's Included</Label>
                             <div className="space-y-2">
                                 {features.map((feature, index) => (
                                     <div key={index} className="flex gap-2">
@@ -318,7 +350,7 @@ export const PricingForm = () => {
                     {/* Advance Options */}
                     <div className="space-y-4 pt-2">
                         <div className="flex items-center gap-2">
-                            <Label className="text-base">Advance option</Label>
+                            <Label className="text-base">Advanced options</Label>
                             <div className="text-slate-400" title="Extra settings">ⓘ</div>
                         </div>
 
@@ -453,7 +485,7 @@ export const PricingForm = () => {
                                 {selectedType === 'donation' && <Heart className="w-5 h-5 text-indigo-600" />}
                                 {selectedType === 'bundle' && <Package className="w-5 h-5 text-indigo-600" />}
                                 <div>
-                                    <p className="font-semibold text-indigo-900 leading-tight">{name || 'Plan Name'}</p>
+                                    <p className="font-semibold text-indigo-900 leading-tight">{name || 'Price Name'}</p>
                                     <p className="text-xs text-indigo-700">{selectedType.replace('_', ' ')}</p>
                                 </div>
                             </div>
@@ -466,7 +498,7 @@ export const PricingForm = () => {
                                 onClick={handleSubmit}
                                 disabled={createPlanMutation.isPending}
                             >
-                                {createPlanMutation.isPending ? 'Creating Plan...' : 'Create Plan'}
+                                {createPlanMutation.isPending ? 'Creating Price...' : 'Create Price'}
                             </Button>
                             <p className="text-[10px] text-center text-slate-400">
                                 (Public button label will be "Get Started")
@@ -478,7 +510,7 @@ export const PricingForm = () => {
                         </div>
 
                         <div className="pt-4 border-t space-y-2">
-                            <h4 className="font-semibold text-slate-900 text-sm">Plan Benefits</h4>
+                            <h4 className="font-semibold text-slate-900 text-sm">What's Included</h4>
                             <ul className="space-y-1">
                                 {features.length > 0 ? (
                                     features.map((feature, i) => (

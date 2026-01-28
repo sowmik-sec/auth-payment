@@ -13,6 +13,12 @@ import type { PricingPlan } from '../types';
 export const AdminPlanList = () => {
     const queryClient = useQueryClient();
 
+    const MOCK_PRODUCTS = {
+        '650000000000000000000001': 'Web Development Masterclass',
+        '650000000000000000000002': 'React Pro Course',
+        '650000000000000000000003': 'Premium Membership',
+    };
+
     // Modal State
     const [editingPlan, setEditingPlan] = useState<PricingPlan | null>(null);
     const [isEditOpen, setIsEditOpen] = useState(false);
@@ -55,9 +61,9 @@ export const AdminPlanList = () => {
     return (
         <div className="p-8">
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold">Pricing Plans (Admin)</h1>
+                <h1 className="text-2xl font-bold">Prices (Admin)</h1>
                 <Link to="/admin/pricing">
-                    <Button><Plus className="w-4 h-4 mr-2" /> Create Plan</Button>
+                    <Button><Plus className="w-4 h-4 mr-2" /> Create Price</Button>
                 </Link>
             </div>
 
@@ -66,9 +72,10 @@ export const AdminPlanList = () => {
                     <TableHeader>
                         <TableRow>
                             <TableHead>Name</TableHead>
+                            <TableHead>Product</TableHead>
                             <TableHead>Type</TableHead>
-                            <TableHead>Stripe Product ID</TableHead>
-                            <TableHead>Stripe Price ID</TableHead>
+                            <TableHead>Amount</TableHead>
+                            <TableHead>Status</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -76,9 +83,22 @@ export const AdminPlanList = () => {
                         {plans?.map((plan) => (
                             <TableRow key={plan.id}>
                                 <TableCell className="font-medium">{plan.name}</TableCell>
-                                <TableCell className="capitalize">{plan.type}</TableCell>
-                                <TableCell className="font-mono text-xs">{plan.stripe_product_id}</TableCell>
-                                <TableCell className="font-mono text-xs">{plan.stripe_price_id}</TableCell>
+                                <TableCell className="text-muted-foreground text-sm">
+                                    {MOCK_PRODUCTS[plan.product_id as keyof typeof MOCK_PRODUCTS] || (
+                                        <span className="font-mono text-xs">{plan.product_id || 'N/A'}</span>
+                                    )}
+                                </TableCell>
+                                <TableCell className="capitalize">
+                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
+                                        {plan.type.replace('_', ' ')}
+                                    </span>
+                                </TableCell>
+                                <TableCell>{formatPrice(plan)}</TableCell>
+                                <TableCell>
+                                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${plan.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                                        {plan.is_active ? 'Active' : 'Inactive'}
+                                    </span>
+                                </TableCell>
                                 <TableCell className="text-right space-x-2">
                                     {plan.id && (
                                         <>
@@ -112,7 +132,7 @@ export const AdminPlanList = () => {
                     <AlertDialogHeader>
                         <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            This action cannot be undone. This will permanently delete the pricing plan and archive the corresponding product in Stripe.
+                            This action cannot be undone. This will permanently delete the price and archive the corresponding product in Stripe.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -126,3 +146,27 @@ export const AdminPlanList = () => {
         </div>
     );
 };
+
+function formatPrice(plan: PricingPlan): string {
+    const currency = plan.one_time_config?.currency || plan.subscription_config?.currency || 'USD';
+    const symbol = currency === 'USD' ? '$' : currency;
+
+    if (plan.type === 'one_time') {
+        return `${symbol}${plan.one_time_config?.price}`;
+    }
+    if (plan.type === 'subscription') {
+        return `${symbol}${plan.subscription_config?.price} / ${plan.subscription_config?.interval}`;
+    }
+    if (plan.type === 'tiered') {
+        const minFn = (tiers: any[]) => Math.min(...tiers.map(t => t.unit_price));
+        return plan.tiered_config?.tiers?.length ? `From ${symbol}${minFn(plan.tiered_config.tiers)}` : 'Tiered';
+    }
+    if (plan.type === 'donation') {
+        return `Min ${symbol}${plan.donation_config?.min_amount}`;
+    }
+    if (plan.type === 'bundle') {
+        return `${symbol}${plan.bundle_config?.price}`;
+    }
+    return 'Custom';
+}
+

@@ -108,3 +108,9 @@ export interface Membership {
     plans?: PricingPlan[]; // Populated
     created_at: string;
 }
+
+export interface Product {
+    id: string;
+    name: string;
+    type: 'course' | 'membership' | 'digital_product';
+}

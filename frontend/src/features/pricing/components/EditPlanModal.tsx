@@ -71,9 +71,9 @@ export const EditPlanModal = ({ plan, open, onOpenChange }: EditPlanModalProps) 
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                    <DialogTitle>Edit Plan</DialogTitle>
+                    <DialogTitle>Edit Price</DialogTitle>
                     <DialogDescription>
-                        Update the pricing plan details. {plan.stripe_price_id && "This will sync with Stripe."}
+                        Update the pricing details. {plan.stripe_price_id && "This will sync with Stripe."}
                     </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="grid gap-4 py-4">
