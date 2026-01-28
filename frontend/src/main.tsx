@@ -16,6 +16,7 @@ import { PricingPage } from './features/pricing/components/PricingPage'
 import { AdminPlanList } from './features/pricing/pages/AdminPlanList'
 
 import { CouponList } from './features/coupons/pages/CouponList'
+import { StripeConnectPage } from './features/stripe-connect/components/StripeConnectPage'
 
 const queryClient = new QueryClient()
 
@@ -46,6 +47,9 @@ const RootComponent = () => {
           </Link>
           <Link to="/admin/coupons" className="[&.active]:font-bold p-2 text-indigo-600">
             Coupons (Admin)
+          </Link>
+          <Link to="/settings/stripe-connect" className="[&.active]:font-bold p-2 text-indigo-600">
+            Connect (Seller)
           </Link>
         </div>
         <div>
@@ -141,7 +145,13 @@ const paymentSuccessRoute = createRoute({
   component: PaymentSuccessPage,
 })
 
-const routeTree = rootRoute.addChildren([indexRoute, loginRoute, signupRoute, adminPlanListRoute, adminPricingRoute, adminCouponsRoute, pricingRoute, checkoutRoute, walletRoute, affiliateRoute, paymentSuccessRoute])
+const stripeConnectRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/settings/stripe-connect',
+  component: StripeConnectPage,
+})
+
+const routeTree = rootRoute.addChildren([indexRoute, loginRoute, signupRoute, adminPlanListRoute, adminPricingRoute, adminCouponsRoute, pricingRoute, checkoutRoute, walletRoute, affiliateRoute, paymentSuccessRoute, stripeConnectRoute])
 
 const router = createRouter({
   routeTree,

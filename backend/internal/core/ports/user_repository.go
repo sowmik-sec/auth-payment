@@ -10,4 +10,5 @@ type UserRepository interface {
 	GetByEmail(ctx context.Context, email string) (*domain.User, error)
 	GetByID(ctx context.Context, id string) (*domain.User, error)
 	Update(ctx context.Context, user *domain.User) error
+	UpdateStripeConnect(ctx context.Context, userID string, connectID string, status string) error
 }

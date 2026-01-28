@@ -41,7 +41,9 @@ func main() {
 
 			handler.NewPaymentHandler,
 			handler.NewWalletHandler,
+
 			handler.NewAffiliateHandler,
+			handler.NewConnectHandler, // Added
 
 			handler.NewInvoiceHandler,
 			handler.NewCouponHandler, // Added
@@ -49,7 +51,8 @@ func main() {
 			services.NewTokenService,
 			services.NewAuthService,
 			services.NewPricingService,
-			services.NewCouponService, // Added
+			services.NewCouponService,  // Added
+			services.NewConnectService, // Added
 			handler.NewAuthHandler,
 			handler.NewPricingHandler,
 			middleware.NewAuthMiddleware,
@@ -78,7 +81,7 @@ func NewGinRouter() *gin.Engine {
 	return r
 }
 
-func RegisterRoutes(router *gin.Engine, authHandler *handler.AuthHandler, pricingHandler *handler.PricingHandler, paymentHandler *handler.PaymentHandler, walletHandler *handler.WalletHandler, affiliateHandler *handler.AffiliateHandler, invoiceHandler *handler.InvoiceHandler, couponHandler *handler.CouponHandler, authMiddleware *middleware.AuthMiddleware) {
+func RegisterRoutes(router *gin.Engine, authHandler *handler.AuthHandler, pricingHandler *handler.PricingHandler, paymentHandler *handler.PaymentHandler, walletHandler *handler.WalletHandler, affiliateHandler *handler.AffiliateHandler, invoiceHandler *handler.InvoiceHandler, couponHandler *handler.CouponHandler, connectHandler *handler.ConnectHandler, authMiddleware *middleware.AuthMiddleware) {
 	authHandler.RegisterRoutes(router, authMiddleware.Protect())
 	pricingHandler.RegisterRoutes(router, authMiddleware.Protect())
 	paymentHandler.RegisterRoutes(router, authMiddleware.Protect())
@@ -93,6 +96,23 @@ func RegisterRoutes(router *gin.Engine, authHandler *handler.AuthHandler, pricin
 		couponGroup.POST("", couponHandler.CreateCoupon)
 		couponGroup.GET("", couponHandler.ListCoupons)
 		couponGroup.POST("/validate", couponHandler.ValidateCoupon) // Public? Maybe allow without auth if guest checkout? For now protected.
+	}
+
+	// Stripe Connect Routes
+	connectGroup := router.Group("/stripe/connect")
+	// callback is public or authenticated?
+	// The callback comes from Stripe browser redirect. It doesn't have the Bearer token in header usually!
+	// But we are using `state` = userID.
+	// We can't rely on AuthMiddleware for callback unless we pass token in state/cookie.
+	// So HandleCallback must be PUBLIC (no middleware), but secure via state check.
+	connectGroup.GET("/callback", connectHandler.HandleCallback)
+
+	// Protected routes
+	protectedConnect := connectGroup.Use(authMiddleware.Protect())
+	{
+		protectedConnect.GET("/oauth", connectHandler.GenerateOAuthURL)
+		protectedConnect.GET("/status", connectHandler.GetStatus)
+		protectedConnect.POST("/dashboard", connectHandler.GetDashboardLink)
 	}
 }
 

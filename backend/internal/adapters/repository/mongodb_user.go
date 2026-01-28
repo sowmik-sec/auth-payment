@@ -70,3 +70,21 @@ func (r *MongoUserRepository) Update(ctx context.Context, user *domain.User) err
 	_, err := r.collection.ReplaceOne(ctx, bson.M{"_id": user.ID}, user)
 	return err
 }
+
+func (r *MongoUserRepository) UpdateStripeConnect(ctx context.Context, userID string, connectID string, status string) error {
+	oid, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		return err
+	}
+
+	update := bson.M{
+		"$set": bson.M{
+			"stripe_connect_id":     connectID,
+			"stripe_connect_status": status,
+			"updated_at":            time.Now(),
+		},
+	}
+
+	_, err = r.collection.UpdateOne(ctx, bson.M{"_id": oid}, update)
+	return err
+}
