@@ -39,6 +39,8 @@ type PricingPlan struct {
 	IsActive     bool               `bson:"is_active" json:"is_active"`
 	Values       []string           `bson:"values" json:"values"` // List of benefits/features
 	AllowCoupons bool               `bson:"allow_coupons" json:"allow_coupons"`
+	IsFree       bool               `bson:"is_free" json:"is_free"`
+	IsPrivate    bool               `bson:"is_private" json:"is_private"`
 
 	// Stripe Sync
 	StripeProductID string `bson:"stripe_product_id,omitempty" json:"stripe_product_id,omitempty"`
@@ -71,12 +73,13 @@ type OneTimeConfig struct {
 }
 
 type SubscriptionConfig struct {
-	Price         float64           `bson:"price" json:"price"`
-	OriginalPrice float64           `bson:"original_price,omitempty" json:"original_price,omitempty"`
-	SetupFee      float64           `bson:"setup_fee,omitempty" json:"setup_fee,omitempty"`
-	Currency      string            `bson:"currency" json:"currency"`
-	Interval      RecurringInterval `bson:"interval" json:"interval"`
-	TrialDays     int               `bson:"trial_days,omitempty" json:"trial_days,omitempty"`
+	Price             float64           `bson:"price" json:"price"`
+	OriginalPrice     float64           `bson:"original_price,omitempty" json:"original_price,omitempty"`
+	SetupFee          float64           `bson:"setup_fee,omitempty" json:"setup_fee,omitempty"`
+	Currency          string            `bson:"currency" json:"currency"`
+	Interval          RecurringInterval `bson:"interval" json:"interval"`
+	TrialDays         int               `bson:"trial_days,omitempty" json:"trial_days,omitempty"`
+	TrialRequiresCard bool              `bson:"trial_requires_card" json:"trial_requires_card"`
 }
 
 type SplitConfig struct {
