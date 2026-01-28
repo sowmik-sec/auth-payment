@@ -1,4 +1,4 @@
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { stripeConnectApi } from './api';
 import { toast } from 'sonner';
 
@@ -32,6 +32,21 @@ export const useStripeDashboard = () => {
         },
         onError: (error) => {
             toast.error('Failed to get dashboard link');
+            console.error(error);
+        }
+    });
+};
+
+export const useDisconnectStripe = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: stripeConnectApi.disconnect,
+        onSuccess: () => {
+            toast.success('Disconnected from Stripe');
+            queryClient.invalidateQueries({ queryKey: ['stripe-connect-status'] });
+        },
+        onError: (error) => {
+            toast.error('Failed to disconnect');
             console.error(error);
         }
     });

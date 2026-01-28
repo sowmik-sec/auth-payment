@@ -1,5 +1,16 @@
 import { Button } from '@/components/ui/button';
-import { useConnectStripe, useStripeConnectStatus, useStripeDashboard } from '../hooks';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { useConnectStripe, useStripeConnectStatus, useStripeDashboard, useDisconnectStripe } from '../hooks';
 import { CheckCircle2, AlertCircle, ExternalLink, Loader2 } from 'lucide-react';
 import { useEffect } from 'react';
 import { toast } from 'sonner';
@@ -8,6 +19,7 @@ export const StripeConnectPage = () => {
     const { data, isLoading } = useStripeConnectStatus();
     const connectMutation = useConnectStripe();
     const dashboardMutation = useStripeDashboard();
+    const disconnectMutation = useDisconnectStripe();
 
     // Check for success/error params in URL (after redirect)
     // We can use TanStack router search params, or just window.location for simplicity if router setup varies.
@@ -73,15 +85,46 @@ export const StripeConnectPage = () => {
                         </div>
 
                         {isConnected ? (
-                            <Button
-                                variant="outline"
-                                onClick={() => dashboardMutation.mutate()}
-                                disabled={dashboardMutation.isPending}
-                                className="gap-2"
-                            >
-                                {dashboardMutation.isPending ? 'Opening...' : 'View Dashboard'}
-                                <ExternalLink className="w-4 h-4" />
-                            </Button>
+                            <div className="flex flex-col sm:flex-row gap-3">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => dashboardMutation.mutate()}
+                                    disabled={dashboardMutation.isPending}
+                                    className="gap-2"
+                                >
+                                    {dashboardMutation.isPending ? 'Opening...' : 'View Dashboard'}
+                                    <ExternalLink className="w-4 h-4" />
+                                </Button>
+
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            disabled={disconnectMutation.isPending}
+                                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                        >
+                                            {disconnectMutation.isPending ? 'Disconnecting...' : 'Disconnect'}
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Disconnect Stripe Account</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                Are you sure you want to disconnect your Stripe account? You will no longer be able to receive payouts until you reconnect.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction
+                                                onClick={() => disconnectMutation.mutate()}
+                                                className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+                                            >
+                                                Disconnect
+                                            </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </div>
                         ) : (
                             <Button
                                 onClick={() => connectMutation.mutate()}

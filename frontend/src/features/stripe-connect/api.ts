@@ -20,8 +20,7 @@ export const stripeConnectApi = {
         return data;
     },
     disconnect: async () => {
-        // Not implemented on backend yet, but placeholder
-        // const { data } = await api.post('/stripe/connect/disconnect');
-        // return data;
+        const { data } = await api.post<{ status: string }>('/stripe/connect/disconnect');
+        return data;
     }
 };

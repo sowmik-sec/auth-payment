@@ -106,6 +106,29 @@ func (s *ConnectService) CreateDashboardLoginLink(ctx context.Context, connectID
 	return link.URL, nil
 }
 
-// CreateAccountLink creates an onboarding link (if account exists but not fully onboarded)
-// Useful if we create the account first via API then redirect.
-// But in OAuth flow, account is created during OAuth.
+// DisconnectUser deauthorizes the connected account and removes it from the user record
+func (s *ConnectService) DisconnectUser(ctx context.Context, userID string) error {
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	if user.StripeConnectID == "" {
+		return fmt.Errorf("user not connected")
+	}
+
+	// Deauthorize from Stripe
+	params := &stripe.DeauthorizeParams{
+		ClientID:     stripe.String(s.config.StripeConnectClientID),
+		StripeUserID: stripe.String(user.StripeConnectID),
+	}
+
+	_, err = oauth.Del(params)
+	// We log error but proceed to remove from DB to keep state consistent if token is already invalid
+	if err != nil {
+		fmt.Printf("Error deauthorizing account: %v\n", err)
+	}
+
+	// Remove from DB
+	return s.userRepo.UpdateStripeConnect(ctx, userID, "", "disconnected")
+}

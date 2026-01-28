@@ -113,6 +113,7 @@ func RegisterRoutes(router *gin.Engine, authHandler *handler.AuthHandler, pricin
 		protectedConnect.GET("/oauth", connectHandler.GenerateOAuthURL)
 		protectedConnect.GET("/status", connectHandler.GetStatus)
 		protectedConnect.POST("/dashboard", connectHandler.GetDashboardLink)
+		protectedConnect.POST("/disconnect", connectHandler.Disconnect)
 	}
 }
 

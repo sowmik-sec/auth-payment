@@ -98,3 +98,16 @@ func (h *ConnectHandler) GetDashboardLink(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"url": url})
 }
+
+// Disconnect handles the disconnection request
+func (h *ConnectHandler) Disconnect(c *gin.Context) {
+	user := c.MustGet("user").(*domain.User)
+
+	err := h.connectService.DisconnectUser(c.Request.Context(), user.ID.Hex())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "disconnected"})
+}
