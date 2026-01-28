@@ -55,6 +55,12 @@ A robust, full-stack application for managing authentication, payments, pricing 
 - **Invoices**: Automated invoice generation and download.
 - **Coupons**: Create, validate, and manage discount coupons.
 
+### 6. Stripe Connect Integration
+- **Marketplace Logic**: Enable users (Sellers) to connect their own Stripe accounts.
+- **Direct Payments**: Funds from "Plan" sales are routed directly to the Creator's Stripe account.
+- **Platform Fees**: Automatically collects a configurable percentage (e.g., 10%) per transaction as revenue for the platform.
+- **Onboarding & Management**: Custom dashboard links and OAuth flow for seamless seller onboarding.
+
 ## 🛠️ Setup & Installation
 
 ### Prerequisites
@@ -76,6 +82,8 @@ A robust, full-stack application for managing authentication, payments, pricing 
    DB_NAME=auth_db
    JWT_SECRET=your_super_secret
    STRIPE_SECRET_KEY=sk_test_...
+   STRIPE_CONNECT_CLIENT_ID=ca_...   # Required for Connect OAuth
+   PLATFORM_FEE_PERCENT=10           # Percentage platform keeps (default 10)
    ```
 3. Run the server:
    ```bash
